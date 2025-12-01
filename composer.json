@@ -1,0 +1,6 @@
+{
+    "require": {
+        "google/auth": "^1.13",
+        "google/cloud-core": "^1.4"
+    }
+}

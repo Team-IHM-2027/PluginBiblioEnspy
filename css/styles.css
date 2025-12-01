@@ -1,0 +1,178 @@
+/* Styles pour la liste de livres et mémoires */
+.books-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem; /* Utilise les unités relatives de Moodle */
+    justify-content: flex-start;
+}
+
+/* Style pour chaque item de livre ou mémoire, s'intègre dans la mise en page 'card' */
+.book-item {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    /* La largeur est gérée par flexbox */
+    flex: 1 1 300px; /* flex-grow, flex-shrink, flex-basis */
+    max-width: 350px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.book-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Correction pour la taille des images dans explore */
+.book-image {
+    height: 200px; /* On garde une hauteur fixe pour l'alignement */
+    width: 100%;
+    overflow: hidden; /* Important pour que l'image ne dépasse pas */
+    background-color: #f0f0f0; /* Couleur de fond pendant le chargement */
+}
+
+.book-image img {
+    height: 100%;
+    width: 100%;
+    object-fit: cover; 
+    transition: transform 0.3s ease;
+}
+
+.book-item:hover .book-image img {
+    transform: scale(1.05); /* Léger effet de zoom au survol */
+}
+
+
+/* Informations sur le livre ou mémoire */
+.book-info {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Occupe l'espace vertical restant */
+}
+
+.book-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.5rem;
+}
+
+.book-category {
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 1rem;
+}
+
+.book-actions {
+    margin-top: auto; /* Pousse les boutons en bas de la carte */
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* --- CORRECTION POUR LES BORDS ARRONDIS --- */
+/* Cible les boutons .btn qui sont à l'intérieur de .book-actions */
+.book-actions .btn {
+    flex: 1;
+    border-radius: 6px; /* Ajoute un arrondi plus prononcé que le défaut */
+}
+
+/* Styles pour la section des recommandations */
+.recommendation-item-link, .recommendation-item-link:hover {
+    text-decoration: none; /* Enlève le soulignement des liens */
+    color: inherit; /* Utilise la couleur du texte parent */
+}
+
+#recommendationsArea .recommendations-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.recommendation-item {
+    background-color: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 1rem;
+    flex: 1 1 250px;
+    max-width: 300px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+    position: relative;
+    cursor: pointer;
+}
+
+.recommendation-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary); /* Utilise la couleur primaire du thème Moodle */
+}
+
+.recommendation-title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recommendation-category {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+}
+
+.recommendation-reason {
+    font-size: 0.8em;
+    color: var(--primary);
+    font-style: italic;
+    position: absolute;
+    bottom: 0.75rem;
+    left: 1rem;
+}
+
+.recommendation-badge {
+    position: absolute;
+    top: -10px;
+    right: 10px;
+    background-color: #17a2b8; /* Gardons une couleur custom pour le badge pour le contraste */
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+
+/* Style pour la page de détails (view.php) */
+.book-detail-image {
+    max-height: 450px;
+    width: auto;
+    max-width: 100%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    margin-bottom: 1rem;
+}
+
+
+/* Message "Aucun résultat" */
+.no-results {
+    width: 100%;
+    padding: 2rem;
+    text-align: center;
+    color: #666;
+}
+
+/* Ajustement des boutons de switch Livres/Mémoires pour qu'ils ne soient pas collés */
+#switchTheses {
+    margin-left: 0.5rem;
+}
