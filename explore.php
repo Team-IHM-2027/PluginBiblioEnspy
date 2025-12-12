@@ -106,6 +106,30 @@ $booksData = callFirestoreAPI($urlBooks, $accessToken);
 $thesesData = callFirestoreAPI($urlTheses, $accessToken);
 $departmentsData = callFirestoreAPI($urlDepartments, $accessToken);
 
+// Traitement des données pour extraire les exemplaires
+$booksDataWithExemplaires = [];
+if (isset($booksData['documents'])) {
+    foreach ($booksData['documents'] as $book) {
+        $book['exemplaire'] = 0;
+        if (isset($book['fields']['exemplaire'])) {
+            if (isset($book['fields']['exemplaire']['integerValue'])) {
+                $book['exemplaire'] = (int)$book['fields']['exemplaire']['integerValue'];
+            } elseif (isset($book['fields']['exemplaire']['doubleValue'])) {
+                $book['exemplaire'] = (int)$book['fields']['exemplaire']['doubleValue'];
+            }
+        }
+        $booksDataWithExemplaires[] = $book;
+    }
+}
+
+$thesesDataWithExemplaires = [];
+if (isset($thesesData['documents'])) {
+    foreach ($thesesData['documents'] as $thesis) {
+        $thesis['exemplaire'] = 1; // Les mémoires ont toujours 1 exemplaire
+        $thesesDataWithExemplaires[] = $thesis;
+    }
+}
+
 // Traitement des départements pour le filtre
 $departmentsList = ['' => 'Tous les départements'];
 if (isset($departmentsData['documents'])) {
@@ -165,9 +189,9 @@ $reservations_url = new moodle_url('/local/biblio_enspy/my_reservations.php');
 echo html_writer::link($reservations_url, 'Mes Réservations', ['class' => 'btn btn-info']);
 echo '</div>';
 
-// Boutons de sélection Livres/Mémoires
+// Boutons de sélection Livres/Mémoires (corrigé pour l'état actif)
 echo '<div class="selection text-center mb-4">';
-echo '<button id="switchBooks" class="btn btn-primary">Livres</button>';
+echo '<button id="switchBooks" class="btn btn-primary active">Livres</button>';
 echo '<button id="switchTheses" class="btn btn-secondary">Mémoires</button>';
 echo '</div>';
 
@@ -179,16 +203,16 @@ echo '</div>';
 
 // Section Recommandations
 $reco_icon = $OUTPUT->pix_icon('i/recommend', 'Recommandations');
-$reco_header = $OUTPUT->heading($reco_icon . ' Recommandations pour vous', 3, ['class' => 'text-center']);
+$reco_header = $OUTPUT->heading($reco_icon . ' pour vous', 3, ['class' => 'text-center']);
 $reco_content = '<div id="recommendationsList" class="recommendations-list"></div>';
 echo $OUTPUT->box($reco_header . $reco_content, 'p-3 mt-4', 'recommendationsArea');
 
-//Passer les IDs des réservations au JS ---
+//Passer les IDs des réservations et les données avec exemplaires au JS
 echo "<script>
-    var booksData = " . json_encode(isset($booksData['documents']) ? $booksData['documents'] : []) . ";
-    var thesesData = " . json_encode(isset($thesesData['documents']) ? $thesesData['documents'] : []) . ";
+    var booksData = " . json_encode($booksDataWithExemplaires) . ";
+    var thesesData = " . json_encode($thesesDataWithExemplaires) . ";
     var userDocId = " . json_encode($userDocId) . ";
-    var userReservationIds = " . json_encode($userReservationIds) . "; // <-- NOUVEAU
+    var userReservationIds = " . json_encode($userReservationIds) . ";
 </script>";
 
 echo $OUTPUT->footer();

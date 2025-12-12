@@ -176,3 +176,76 @@
 #switchTheses {
     margin-left: 0.5rem;
 }
+
+/*========== NOUVEAU ============*/
+
+/* Style pour l'affichage des exemplaires */
+.text-success strong {
+    color: #28a745 !important;
+}
+
+.text-danger strong {
+    color: #dc3545 !important;
+}
+
+.book-category {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Styles pour la page de détails des mémoires */
+.availability-section {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    margin: 1rem 0;
+}
+
+.availability-section p {
+    margin-bottom: 0.5rem;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Responsive pour les boutons */
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .action-buttons .btn {
+        width: 100%;
+        max-width: 300px;
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Styles pour les boutons de sélection */
+.selection .btn {
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.selection .btn.active {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+/* Pour garantir que les boutons secondaires ne restent pas avec un style primaire */
+.btn-secondary.active {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.btn-secondary.active:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}

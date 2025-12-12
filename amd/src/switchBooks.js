@@ -84,13 +84,16 @@ function displayRecommendations() {
 }
 
 
-// --- FONCTION D'AFFICHAGE DES ITEMS (INCHANGÉE) ---
+// --- FONCTION D'AFFICHAGE DES ITEMS  ---
 function displayItems(items, type) {
     var listElement = document.getElementById(type + 'List');
     listElement.innerHTML = ''; 
     listElement.style.display = 'flex';
 
-    if (items.length === 0) { /* ... */ return; }
+    if (items.length === 0) { 
+        listElement.innerHTML = '<div class="no-results">Aucun document trouvé.</div>'; 
+        return; 
+    }
 
     var startIdx = (type === 'books' ? currentBooksPage - 1 : currentThesesPage - 1) * (type === 'books' ? booksPerPage : thesesPerPage);
     var endIdx = startIdx + (type === 'books' ? booksPerPage : thesesPerPage);
@@ -102,14 +105,27 @@ function displayItems(items, type) {
         var imageUrl = item.fields.image ? item.fields.image.stringValue : 'images/default-image.png';
         var docId = item.name.split('/').pop();
         const detailUrl = `view.php?id=${docId}&type=${type}`;
+        
+        // Récupérer le nombre d'exemplaires (ajouté dans explore.php)
+        var exemplaire = item.exemplaire || 0;
+        
+        // Préparer l'affichage des exemplaires
+        var exemplaireHtml = '';
+        if (exemplaire > 0) {
+            exemplaireHtml = '<span class="text-success"><strong>' + exemplaire + ' exemplaire(s)</strong></span>';
+        } else {
+            exemplaireHtml = '<span class="text-danger"><strong>Hors Stock</strong></span>';
+        }
 
         // --- CORRECTION : Logique pour le bouton Réserver/Réservé ---
         let reserveButtonHtml = '';
         // On vérifie si l'ID du document est dans la liste des réservations de l'utilisateur
         if (userReservationIds.includes(docId)) {
             reserveButtonHtml = `<button class="btn btn-secondary book-btn" disabled>Réservé</button>`;
-        } else {
+        } else if (exemplaire > 0) {
             reserveButtonHtml = `<button class="btn btn-primary book-btn book-btn-reserve" data-id="${docId}" data-type="${type}" onclick="reserveItem(this)">Réserver</button>`;
+        } else {
+            reserveButtonHtml = `<button class="btn btn-secondary book-btn" disabled>Indisponible</button>`;
         }
 
         var itemHTML = `
@@ -117,7 +133,10 @@ function displayItems(items, type) {
                 <div class="book-image"><a href="${detailUrl}"><img src="${imageUrl}" alt="${name}"></a></div>
                 <div class="book-info">
                     <h3 class="book-title" title="${name}"><a href="${detailUrl}">${name}</a></h3>
-                    <p class="book-category" title="${category}">${category}</p>
+                    <p class="book-category" title="${category}">
+                        ${category}
+                        <span style="margin-left: 10px;">${exemplaireHtml}</span>
+                    </p>
                     <div class="book-actions">
                         <a href="${detailUrl}" class="btn btn-secondary book-btn">Détails</a>
                         ${reserveButtonHtml}
@@ -245,33 +264,54 @@ function renderPagination(items, type) {
     contentArea.appendChild(paginationElement);
 }
 
-// --- ÉCOUTEURS D'ÉVÉNEMENTS (CORRIGÉS) ---
+// --- ÉCOUTEURS D'ÉVÉNEMENTS (CORRIGÉS POUR LES BOUTONS) ---
 document.addEventListener('DOMContentLoaded', (event) => {
     document.getElementById('searchBar').addEventListener('input', () => applyFilters(true));
     document.getElementById('departmentFilter').addEventListener('change', () => applyFilters(true));
 
     document.getElementById('switchBooks').addEventListener('click', function() {
         if (isBook) return;
+        
+        // Mettre à jour l'état
         isBook = true;
         isThesis = false;
+        
+        // Afficher/masquer les listes
         document.getElementById('booksList').style.display = 'flex';
         document.getElementById('thesesList').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('switchTheses').classList.remove('active');
+        
+        // CORRECTION : Mettre à jour les classes des boutons
+        this.classList.remove('btn-secondary');
+        this.classList.add('btn-primary', 'active');
+        
+        document.getElementById('switchTheses').classList.remove('btn-primary', 'active');
+        document.getElementById('switchTheses').classList.add('btn-secondary');
+        
         applyFilters(true);
     });
 
     document.getElementById('switchTheses').addEventListener('click', function() {
         if (isThesis) return;
+        
+        // Mettre à jour l'état
         isBook = false;
         isThesis = true;
+        
+        // Afficher/masquer les listes
         document.getElementById('thesesList').style.display = 'flex';
         document.getElementById('booksList').style.display = 'none';
-        this.classList.add('active');
-        document.getElementById('switchBooks').classList.remove('active');
+        
+        // CORRECTION : Mettre à jour les classes des boutons
+        this.classList.remove('btn-secondary');
+        this.classList.add('btn-primary', 'active');
+        
+        document.getElementById('switchBooks').classList.remove('btn-primary', 'active');
+        document.getElementById('switchBooks').classList.add('btn-secondary');
+        
         applyFilters(true);
     });
 
+    // Initialisation (le bouton Livres est déjà actif par défaut)
     document.getElementById('switchBooks').classList.add('active');
     applyFilters(true);
     displayRecommendations();
