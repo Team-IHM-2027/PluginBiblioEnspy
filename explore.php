@@ -16,7 +16,6 @@ if (!$projectId || !$accessToken) {
 
 require_login();
 
-
 // Vérification statut utilisateur Firestore
 $status = biblio_check_user_status($USER, $projectId, $accessToken);
 
@@ -141,6 +140,37 @@ if (isset($departmentsData['documents'])) {
     }
 }
 
+// ================================================================
+// Fonction pour extraire les IDs de réservation depuis tabEtat{i}
+//================================================================
+function extractReservationIdsFromUserData($userFields) {
+    $reservationIds = [];
+    $maxReservations = 3; // 3 états maximum
+    
+    for ($i = 1; $i <= $maxReservations; $i++) { 
+        $etatField = "etat{$i}";
+        $tabEtatField = "tabEtat{$i}";
+        
+        // Vérifier si l'état est "reserv" ou "emprunt"
+        if (isset($userFields[$etatField]['stringValue'])) {
+            $currentStatus = $userFields[$etatField]['stringValue'];
+            
+            if (($currentStatus === 'reserv' || $currentStatus === 'emprunt') &&
+                isset($userFields[$tabEtatField]['arrayValue']['values'])) {
+                
+                $tabEtatValues = $userFields[$tabEtatField]['arrayValue']['values'];
+                
+                // Structure de tabEtat{i} : [0:name, 1:cathegorie, 2:image, 3:exemplaires, 4:collection, 5:timestamp, 6:docId]
+                if (count($tabEtatValues) > 6 && isset($tabEtatValues[6]['stringValue'])) {
+                    $reservationIds[] = $tabEtatValues[6]['stringValue'];
+                }
+            }
+        }
+    }
+    
+    return $reservationIds;
+}
+
 // Récupérer l'ID ET les réservations de l'utilisateur ---
 $userExists = false;
 $userDocId = null;
@@ -153,14 +183,8 @@ if (isset($userData['documents'])) {
             $pathParts = explode('/', $document['name']);
             $userDocId = end($pathParts);
 
-            // On récupère la liste des IDs des documents réservés
-            if (isset($document['fields']['reservations']['arrayValue']['values'])) {
-                foreach ($document['fields']['reservations']['arrayValue']['values'] as $reservation) {
-                    if (isset($reservation['mapValue']['fields']['docId']['stringValue'])) {
-                        $userReservationIds[] = $reservation['mapValue']['fields']['docId']['stringValue'];
-                    }
-                }
-            }
+            // Extraire les IDs de réservation
+            $userReservationIds = extractReservationIdsFromUserData($document['fields']);
             break;
         }
     }
@@ -170,17 +194,29 @@ if (!$userExists) {
     redirect(new moodle_url('/local/biblio_enspy/register.php'));
 }
 
-// ---- AFFICHAGE DE LA PAGE ----
+// ============ AFFICHAGE DE LA PAGE =====================================
 echo $OUTPUT->header();
 
-// Boîte de filtres
+// Boîte de filtres UNIQUE et COMPLÈTE
 $filter_html = '<div class="form-group">
                     <input type="text" id="searchBar" class="form-control" placeholder="Rechercher par titre, auteur, catégorie..." />
                 </div>';
 $filter_html .= '<div class="form-group">
-                    <label for="departmentFilter">Filtrer par département :</label>';
+                    <label for="departmentFilter">Filtrer par département : </label>';
 $filter_html .= html_writer::select($departmentsList, 'departmentFilter', '', [], ['id' => 'departmentFilter', 'class' => 'form-control custom-select']);
 $filter_html .= '</div>';
+$filter_html .= '<div class="form-group">
+                    <label for="sortFilter">Trier par :</label>
+                    <select id="sortFilter" class="form-control custom-select">
+                        <option value="title_asc">A → Z (Titre)</option>
+                        <option value="title_desc">Z → A (Titre)</option>
+                        <option value="department_asc">Département (A→Z)</option>
+                        <option value="department_desc">Département (Z→A)</option>
+                        <option value="availability_desc">Disponibilité (Plus d\'exemplaires)</option>
+                        <option value="availability_asc">Disponibilité (Moins d\'exemplaires)</option>
+                    </select>
+                </div>';
+
 echo $OUTPUT->box($filter_html, 'p-3 mb-4');
 
 // Lien vers "Mes Réservations" ---
@@ -189,7 +225,7 @@ $reservations_url = new moodle_url('/local/biblio_enspy/my_reservations.php');
 echo html_writer::link($reservations_url, 'Mes Réservations', ['class' => 'btn btn-info']);
 echo '</div>';
 
-// Boutons de sélection Livres/Mémoires (corrigé pour l'état actif)
+// Boutons de sélection Livres/Mémoires
 echo '<div class="selection text-center mb-4">';
 echo '<button id="switchBooks" class="btn btn-primary active">Livres</button>';
 echo '<button id="switchTheses" class="btn btn-secondary">Mémoires</button>';
@@ -202,9 +238,18 @@ echo '<div id="thesesList" class="books-list" style="display: none;"></div>';
 echo '</div>';
 
 // Section Recommandations
-$reco_icon = $OUTPUT->pix_icon('i/recommend', 'Recommandations');
-$reco_header = $OUTPUT->heading($reco_icon . ' pour vous', 3, ['class' => 'text-center']);
-$reco_content = '<div id="recommendationsList" class="recommendations-list"></div>';
+$reco_icon = $OUTPUT->pix_icon('recommend', 'Recommandations', 'local_biblio_enspy', ['class' => 'recommend-icon']);
+$reco_header = $OUTPUT->heading($reco_icon . ' Recommandations pour vous', 3, ['class' => 'text-center mb-4']);
+
+// Structure très simple
+$reco_content = '<div class="recommendations-section">
+                    <div class="recommendations-scroll-container">
+                        <div id="recommendationsList" class="recommendations-list"></div>
+                    </div>
+                    <button class="scroll-left" aria-label="Left">&lsaquo;</button>
+                    <button class="scroll-right" aria-label="Right">&rsaquo;</button>
+                 </div>';
+
 echo $OUTPUT->box($reco_header . $reco_content, 'p-3 mt-4', 'recommendationsArea');
 
 //Passer les IDs des réservations et les données avec exemplaires au JS
@@ -216,4 +261,4 @@ echo "<script>
 </script>";
 
 echo $OUTPUT->footer();
-?>
+?> CRITIQUE : CRITIQUE :

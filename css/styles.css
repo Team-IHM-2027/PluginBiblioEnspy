@@ -78,81 +78,11 @@
     gap: 0.5rem;
 }
 
-/* --- CORRECTION POUR LES BORDS ARRONDIS --- */
 /* Cible les boutons .btn qui sont à l'intérieur de .book-actions */
 .book-actions .btn {
     flex: 1;
-    border-radius: 6px; /* Ajoute un arrondi plus prononcé que le défaut */
-}
-
-/* Styles pour la section des recommandations */
-.recommendation-item-link, .recommendation-item-link:hover {
-    text-decoration: none; /* Enlève le soulignement des liens */
-    color: inherit; /* Utilise la couleur du texte parent */
-}
-
-#recommendationsArea .recommendations-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    justify-content: center;
-}
-
-.recommendation-item {
-    background-color: #fff;
-    border: 1px solid #e9ecef;
     border-radius: 6px;
-    padding: 1rem;
-    flex: 1 1 250px;
-    max-width: 300px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    transition: all 0.2s ease;
-    position: relative;
-    cursor: pointer;
 }
-
-.recommendation-item:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-    border-color: var(--primary); /* Utilise la couleur primaire du thème Moodle */
-}
-
-.recommendation-title {
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.recommendation-category {
-    font-size: 0.9em;
-    color: #6c757d;
-    margin-bottom: 1.5rem;
-}
-
-.recommendation-reason {
-    font-size: 0.8em;
-    color: var(--primary);
-    font-style: italic;
-    position: absolute;
-    bottom: 0.75rem;
-    left: 1rem;
-}
-
-.recommendation-badge {
-    position: absolute;
-    top: -10px;
-    right: 10px;
-    background-color: #17a2b8; /* Gardons une couleur custom pour le badge pour le contraste */
-    color: white;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.75em;
-    font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
 
 /* Style pour la page de détails (view.php) */
 .book-detail-image {
@@ -248,4 +178,215 @@
 .btn-secondary.active:hover {
     background-color: #5a6268;
     border-color: #545b62;
+}
+
+/* Styles pour les filtres */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* Pour aligner les filtres sur une ligne sur grand écran */
+@media (min-width: 768px) {
+    .box.p-3.mb-4 {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .box.p-3.mb-4 .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+}
+
+
+/* ===============================================
+Zone recommandations : défilement horizontal isolé
+==================================================*/
+.recommendations-section {
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Conteneur scrollable horizontalement */
+.recommendations-scroll-container {
+    position: relative;
+    overflow-x: auto;     
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    padding: 0 40px;
+    margin: 0 -40px;
+}
+
+/* Liste : alignement horizontal et pas de wrapping */
+.recommendations-list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 0.5rem;
+    margin: 0;
+    padding: 0.5rem 0;
+    padding-left: 10px;
+}
+
+/* Chaque lien englobe toute la carte */
+.recommendation-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    flex: 0 0 220px;         /* largeur fixe; empêche le shrink */
+    max-width: 220px;
+}
+
+/* Carte individuelle */
+.recommendation-card {
+    width: 220px;
+    height: 320px;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* Image : taille fixe dans la carte */
+.recommendation-image {
+    height: 200px;
+    width: 100%;
+    overflow: hidden;
+    background-color: #f6f6f6;
+}
+.recommendation-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Contenu texte */
+.recommendation-content {
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1 1 auto;
+}
+
+/* Type (Livre/Mémoire) */
+.recommendation-type {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* Titre : ellipsis (garantit qu'un titre trop long s'arrête par des points) */
+/* Ici on applique une limite visuelle à 2 lignes (compatible webkit) et fallback one-line */
+.recommendation-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #222;
+    margin: 0;
+    line-height: 1.15;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* catégorie et raison */
+.recommendation-category,
+.recommendation-reason {
+    font-size: 0.85rem;
+    color: #666;
+    margin: 0;
+}
+
+/* Badge disponibilité */
+.recommendation-availability .badge {
+    display: inline-block;
+    margin-top: 0.25rem;
+}
+
+/* Boutons de scroll (optionnel) */
+.recommendations-scroll-container .scroll-left,
+.recommendations-scroll-container .scroll-right {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid rgba(0,0,0,0.08);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    font-size: 18px;
+}
+.recommendations-scroll-container .scroll-left { left: 8px; }
+.recommendations-scroll-container .scroll-right { right: 8px; }
+
+#recommendationsList > .recommendation-item:first-child {
+    margin-left: 0 !important;
+}
+
+/* cache léger pour petites tailles  */
+@media (max-width: 480px) {
+    .recommendation-card-link, .recommendation-card { flex: 0 0 160px; width: 160px; height: 260px; }
+    .recommendation-image { height: 160px; }
+}
+
+/* Ajout utile pour prévenir les problèmes de calculs */
+#recommendationsList, #recommendationsList * {
+    box-sizing: border-box;
+}
+
+/* Si tu veux forcer une visibilité nette du badge et une séparation correcte */
+.recommendation-item { overflow: visible; }
+.recommendation-content { overflow: hidden; }
+
+
+/* ==========================================
+Styles pour les boutons de réservation 
+============================================*/
+.book-btn:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+.book-btn-reserve {
+    transition: all 0.3s ease;
+}
+
+.book-btn-reserve:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+/* Badges */
+.badge-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    font-size: 0.8em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+/* Style pour le bouton "Déjà réservé" */
+.btn-secondary .fa-check-circle {
+    margin-right: 5px;
 }

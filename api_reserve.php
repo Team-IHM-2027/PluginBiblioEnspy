@@ -122,27 +122,34 @@ try {
     $etatIndex = 0;
     $maxReservations = 3; 
 
-    for ($i = 1; $i <= $maxReservations; $i++) {
-        $val = $userFields["etat{$i}"]['stringValue'] ?? 'ras';
-        
-        if ($val === 'reserv') {
-            // Vérifier si le livre est déjà réservé par l'utilisateur
-            if (isset($userFields["tabEtat{$i}"]['arrayValue']['values']) && is_array($userFields["tabEtat{$i}"]['arrayValue']['values'])) {
-                $reservedBookName = $userFields["tabEtat{$i}"]['arrayValue']['values'][0]['stringValue'] ?? ''; 
-                if (strtolower($reservedBookName) === strtolower($itemName)) {
+for ($i = 1; $i <= $maxReservations; $i++) {
+    $val = $userFields["etat{$i}"]['stringValue'] ?? 'ras';
+    
+    if ($val === 'reserv' || $val === 'emprunt') {
+        // Vérifier si le livre est déjà réservé par l'utilisateur
+        if (isset($userFields["tabEtat{$i}"]['arrayValue']['values']) && 
+            is_array($userFields["tabEtat{$i}"]['arrayValue']['values'])) {
+            
+            $tabEtatValues = $userFields["tabEtat{$i}"]['arrayValue']['values'];
+            
+            // Vérifier par docId (index 6) 
+            if (isset($tabEtatValues[6]['stringValue']) && 
+                $tabEtatValues[6]['stringValue'] === $itemId) {
+                
+                if ($val === 'reserv') {
                     throw new Exception('Vous avez déjà réservé ce livre.');
+                }
+                elseif ($val === 'emprunt') {
+                    throw new Exception('Vous avez déjà emprunté ce livre.');
                 }
             }
         }
-        
-        if ($val === 'ras' && $etatIndex === 0) {
-            $etatIndex = $i;
-        }
     }
-
-    if ($etatIndex === 0) {
-        throw new Exception("Limite de {$maxReservations} réservations actives atteinte ou aucun emplacement libre.");
+    
+    if ($val === 'ras' && $etatIndex === 0) {
+        $etatIndex = $i;
     }
+}
 
     $etatField = "etat{$etatIndex}";
     $tabEtatField = "tabEtat{$etatIndex}";

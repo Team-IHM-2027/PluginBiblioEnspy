@@ -1,7 +1,7 @@
 <?php
 require_once('../../config.php');
 
-$PAGE->set_url(new moodle_url('/local/biblio_enspy/login.php')); // Utiliser login.php ici, pas index.php
+$PAGE->set_url(new moodle_url('/local/biblio_enspy/login.php'));
 $PAGE->set_context(context_system::instance());
 $PAGE->set_title('Bibliothèque - Connexion');
 $PAGE->set_heading('Bibliothèque');
