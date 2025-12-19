@@ -298,7 +298,8 @@ function displayItems(items, type) {
                 data-id="${docId}" 
                 data-type="${type}" 
                 onclick="reserveItem(this)"
-                style="cursor: pointer;">
+                style="cursor: pointer;"
+                title="Cliquez pour réserver ce document">
                 Réserver
             </button>`;
         }
@@ -314,7 +315,7 @@ function displayItems(items, type) {
                         ${isAlreadyReserved ? '<span class="badge badge-warning ml-2">Réservé par vous</span>' : ''}
                     </p>
                     <div class="book-actions">
-                        <a href="${detailUrl}" class="btn btn-primary book-btn">Détails</a>
+                        <a href="${detailUrl}" class="btn btn-outline-primary book-btn" style="flex: 1;">Détails</a>
                         ${reserveButtonHtml}
                     </div>
                 </div>
@@ -326,88 +327,150 @@ function displayItems(items, type) {
 
 
 // --- FONCTION DE RÉSERVATION  ---
-function reserveItem(element) {
+async function reserveItem(element) {
     var itemId = element.getAttribute('data-id');
     var itemType = element.getAttribute('data-type');
     
     // VÉRIFICATION SUPPLEMENTAIRE : Empêcher la réservation si déjà réservé
     if (userReservationIds.includes(itemId)) {
-        alert('Vous avez déjà réservé ce document !');
+        await MoodleNotificationHelper.error(
+            'Vous avez déjà réservé ce document !',
+            'Réservation impossible'
+        );
         return;
     }
     
     var allItems = [...booksData, ...thesesData];
     var item = allItems.find(i => i.name.split('/').pop() === itemId);
     
-    if (item) {
-        var itemName = item.fields.name ? item.fields.name.stringValue : (item.fields.Nom ? item.fields.Nom.stringValue : 'Nom non disponible');
-        
-        if (!confirm(`Vous êtes sur le point de réserver "${itemName}".\nConfirmer ?`)) {
-            return;
-        }
+    if (!item) {
+        await MoodleNotificationHelper.error(
+            'Document introuvable',
+            'Erreur'
+        );
+        return;
+    }
+    
+    var itemName = item.fields.name ? item.fields.name.stringValue : 
+                  (item.fields.Nom ? item.fields.Nom.stringValue : 'Nom non disponible');
+    
+    // Utilisation de la notification de confirmation Moodle
+    const confirmation = await MoodleNotificationHelper.confirm(
+        `Vous êtes sur le point de réserver :<br><strong>"${itemName}"</strong>`,
+        'Confirmation de réservation'
+    );
+    
+    if (!confirmation.confirmed) {
+        return; // L'utilisateur a annulé
+    }
+    
+    const reservationData = {
+        itemId: itemId,
+        itemType: itemType,
+        userDocId: userDocId
+    };
 
-        const reservationData = {
-            itemId: itemId,
-            itemType: itemType,
-            userDocId: userDocId
-        };
+    // Sauvegarder l'état original du bouton
+    const originalText = element.textContent;
+    const originalClass = element.className;
+    const originalCursor = element.style.cursor;
+    
+    // Mettre à jour l'état du bouton
+    element.disabled = true;
+    element.textContent = 'En cours...';
+    element.style.cursor = 'wait';
 
-        element.disabled = true;
-        element.textContent = 'En cours...';
-        element.style.cursor = 'wait';
-
-        fetch('api_reserve.php', {
+    try {
+        const response = await fetch('api_reserve.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(reservationData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Réservation réussie !');
-                
-                // 1. Mettre à jour la liste locale des réservations
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Notification de succès
+            await MoodleNotificationHelper.success(
+                'Votre réservation a été enregistrée avec succès !',
+                'Réservation réussie'
+            );
+            
+            // 1. Mettre à jour la liste locale des réservations
+            if (!userReservationIds.includes(itemId)) {
                 userReservationIds.push(itemId);
+            }
+            
+            // 2. Mettre à jour l'affichage du bouton
+            element.textContent = 'Réservé';
+            element.classList.remove('btn-primary', 'book-btn-reserve');
+            element.classList.add('btn-secondary');
+            element.disabled = true;
+            element.style.cursor = 'not-allowed';
+            element.style.opacity = '0.6';
+            
+            // 3. Mettre à jour le badge "Réservé par vous"
+            const parentElement = element.closest('.book-info');
+            if (parentElement) {
+                const categoryElement = parentElement.querySelector('.book-category');
+                if (categoryElement && !categoryElement.querySelector('.badge-warning')) {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge badge-warning ml-2';
+                    badge.textContent = 'Réservé par vous';
+                    categoryElement.appendChild(badge);
+                }
+            }
+            
+            // 4. Mettre à jour le compteur d'exemplaires
+            const itemIndex = allItems.findIndex(i => i.name.split('/').pop() === itemId);
+            if (itemIndex !== -1 && allItems[itemIndex].exemplaire > 0) {
+                allItems[itemIndex].exemplaire--;
                 
-                // 2. Mettre à jour l'affichage du bouton
-                element.textContent = 'Réservé';
-                element.classList.remove('btn-primary', 'book-btn-reserve');
-                element.classList.add('btn-secondary');
-                element.disabled = true;
-                element.style.cursor = 'not-allowed';
-                element.style.opacity = '0.6';
+                // Mettre à jour l'affichage du compteur
+                const exemplaireSpan = document.querySelector(`[data-id="${itemId}"]`)
+                    ?.closest('.book-info')
+                    ?.querySelector('.text-success, .text-danger');
                 
-                // 3. Mettre à jour le badge "Réservé par vous"
-                const parentElement = element.closest('.book-info');
-                if (parentElement) {
-                    const categoryElement = parentElement.querySelector('.book-category');
-                    if (categoryElement && !categoryElement.querySelector('.badge-warning')) {
-                        categoryElement.innerHTML += ' <span class="badge badge-warning ml-2">Réservé par vous</span>';
+                if (exemplaireSpan) {
+                    const newCount = allItems[itemIndex].exemplaire;
+                    if (newCount > 0) {
+                        exemplaireSpan.innerHTML = `<strong>${newCount} exemplaire(s)</strong>`;
+                    } else {
+                        exemplaireSpan.innerHTML = '<strong>Hors Stock</strong>';
+                        exemplaireSpan.classList.remove('text-success');
+                        exemplaireSpan.classList.add('text-danger');
                     }
                 }
-                
-                // 4. Optionnel : Mettre à jour le compteur d'exemplaires
-                const itemIndex = allItems.findIndex(i => i.name.split('/').pop() === itemId);
-                if (itemIndex !== -1 && allItems[itemIndex].exemplaire > 0) {
-                    allItems[itemIndex].exemplaire--;
-                }
-                
-            } else {
-                alert('Échec de la réservation : ' + data.message);
-                element.disabled = false;
-                element.textContent = 'Réserver';
-                element.style.cursor = 'pointer';
             }
-        })
-        .catch(error => {
-            console.error('Erreur lors de la réservation:', error);
-            alert('Une erreur réseau est survenue. Veuillez réessayer.');
+            
+        } else {
+            // Notification d'erreur
+            await MoodleNotificationHelper.error(
+                data.message || 'Une erreur est survenue lors de la réservation.',
+                'Échec de la réservation'
+            );
+            
+            // Restaurer le bouton
             element.disabled = false;
-            element.textContent = 'Réserver';
-            element.style.cursor = 'pointer';
-        });
+            element.textContent = originalText;
+            element.style.cursor = originalCursor;
+        }
+        
+    } catch (error) {
+        console.error('Erreur lors de la réservation:', error);
+        
+        // Notification d'erreur réseau
+        await MoodleNotificationHelper.error(
+            'Une erreur réseau est survenue. Veuillez vérifier votre connexion et réessayer.',
+            'Erreur réseau'
+        );
+        
+        // Restaurer le bouton
+        element.disabled = false;
+        element.textContent = originalText;
+        element.style.cursor = originalCursor;
     }
 }
 
@@ -422,6 +485,10 @@ function renderPagination(items, type) {
 
     paginationElement = document.createElement('div');
     paginationElement.classList.add('pagination');
+    paginationElement.style.display = 'flex';
+    paginationElement.style.justifyContent = 'center';
+    paginationElement.style.margin = '20px 0';
+    paginationElement.style.gap = '5px';
     
     const currentPage = type === 'books' ? currentBooksPage : currentThesesPage;
 
@@ -525,7 +592,72 @@ document.addEventListener('DOMContentLoaded', (event) => {
     // Initialisation (le bouton Livres est déjà actif par défaut)
     document.getElementById('switchBooks').classList.add('active');
     document.getElementById('sortFilter').addEventListener('change', () => applyFilters(true));
+    
     applyFilters(true);
-    displayRecommendations();
-    initHorizontalScroll();
+    // Initialiser les recommandations si la fonction existe
+    if (typeof displayRecommendations === 'function') {
+        displayRecommendations();
+    }
+    
+    if (typeof initHorizontalScroll === 'function') {
+        initHorizontalScroll();
+    }
 });
+
+/**
+ * MoodleNotificationHelper
+ * Classe utilitaire pour afficher des notifications et boîtes de confirmation
+ * men utilisant core/notification de Moodle.
+ */
+class MoodleNotificationHelper {
+    static async show(message, type = 'info', title = '', options = {}) {
+        const Notification = await new Promise(resolve => require(['core/notification'], resolve));
+        
+        const icons = {
+            success: 'fa-check-circle text-success',
+            error:   'fa-times-circle text-danger',
+            warning: 'fa-exclamation-triangle text-warning',
+            info:    'fa-info-circle text-info',
+            confirm: 'fa-question-circle text-primary'
+        };
+
+        const iconHtml = `<i class="fa ${icons[type] || icons.info}" aria-hidden="true"></i> `;
+        const fullTitle = title ? (iconHtml + title) : '';
+
+        return new Promise((resolve) => {
+            if (type === 'confirm') {
+                Notification.confirm(
+                    fullTitle || 'Confirmation',
+                    message,
+                    options.confirmText || 'Confirmer',
+                    options.cancelText || 'Annuler',
+                    (confirmed) => resolve({ confirmed })
+                );
+            } else {
+                try {
+                    // Tente l'alerte modale si un titre existe
+                    if (title) {
+                        Notification.alert(fullTitle, message, type);
+                    } else {
+                        throw 'no-title'; 
+                    }
+                } catch (e) {
+                    // Fallback vers notification flottante (Toast)
+                    Notification.addNotification({
+                        message: fullTitle ? `<strong>${fullTitle}</strong><br>${message}` : message,
+                        type: type,
+                        announce: true
+                    });
+                }
+                resolve({ shown: true });
+            }
+        });
+    }
+
+    // Un seul point d'entrée pour les appels rapides
+    static success(m, t) { return this.show(m, 'success', t); }
+    static error(m, t)   { return this.show(m, 'error', t); }
+    static info(m, t)    { return this.show(m, 'info', t); }
+    static warning(m, t) { return this.show(m, 'warning', t); }
+    static confirm(m, t) { return this.show(m, 'confirm', t); }
+}

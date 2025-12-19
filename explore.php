@@ -197,25 +197,39 @@ if (!$userExists) {
 // ============ AFFICHAGE DE LA PAGE =====================================
 echo $OUTPUT->header();
 
-// Boîte de filtres UNIQUE et COMPLÈTE
-$filter_html = '<div class="form-group">
-                    <input type="text" id="searchBar" class="form-control" placeholder="Rechercher par titre, auteur, catégorie..." />
-                </div>';
-$filter_html .= '<div class="form-group">
-                    <label for="departmentFilter">Filtrer par département : </label>';
+// Boîte de filtres
+// Début du conteneur Flexbox principal
+$filter_html = '<div class="d-flex flex-wrap align-items-start gap-4">';
+
+// Conteneur Flexbox principal (d-flex, flex-wrap, align-items-start, gap-3)
+$filter_html = '<div class="d-flex flex-wrap align-items-start gap-3">';
+
+// 1. Champ de recherche (Input)
+$filter_html .= '<div class="form-group flex-fill me-2">';
+$filter_html .= '<label for="searchBar" class="form-label">Rechercher :</label>';
+$filter_html .= '<input type="text" id="searchBar" class="form-control" placeholder="Rechercher par titre, auteur, catégorie..." />';
+$filter_html .= '</div>';
+
+// 2. Filtre par département (Select)
+$filter_html .= '<div class="form-group">'; 
+$filter_html .= '<label for="departmentFilter" class="form-label">Filtrer par département : </label>';
 $filter_html .= html_writer::select($departmentsList, 'departmentFilter', '', [], ['id' => 'departmentFilter', 'class' => 'form-control custom-select']);
 $filter_html .= '</div>';
-$filter_html .= '<div class="form-group">
-                    <label for="sortFilter">Trier par :</label>
-                    <select id="sortFilter" class="form-control custom-select">
-                        <option value="title_asc">A → Z (Titre)</option>
-                        <option value="title_desc">Z → A (Titre)</option>
-                        <option value="department_asc">Département (A→Z)</option>
-                        <option value="department_desc">Département (Z→A)</option>
-                        <option value="availability_desc">Disponibilité (Plus d\'exemplaires)</option>
-                        <option value="availability_asc">Disponibilité (Moins d\'exemplaires)</option>
-                    </select>
-                </div>';
+
+// 3. Trier par (Select)
+$filter_html .= '<div class="form-group">';
+$filter_html .= '<label for="sortFilter" class="form-label">Trier par :</label>';
+$filter_html .= '<select id="sortFilter" class="form-control custom-select">
+                    <option value="title_asc">A → Z (Titre)</option>
+                    <option value="title_desc">Z → A (Titre)</option>
+                    <option value="department_asc">Département (A→Z)</option>
+                    <option value="department_desc">Département (Z→A)</option>
+                    <option value="availability_desc">Disponibilité (Plus d\'exemplaires)</option>
+                    <option value="availability_asc">Disponibilité (Moins d\'exemplaires)</option>
+                </select>';
+$filter_html .= '</div>';
+
+$filter_html .= '</div>'; 
 
 echo $OUTPUT->box($filter_html, 'p-3 mb-4');
 
@@ -261,4 +275,4 @@ echo "<script>
 </script>";
 
 echo $OUTPUT->footer();
-?> CRITIQUE : CRITIQUE :
+?>
