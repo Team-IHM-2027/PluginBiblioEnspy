@@ -48,7 +48,6 @@ if ($itemType === 'books') {
     $author = $fields['auteur']['stringValue'] ?? 'Non disponible';
     $description = $fields['desc']['stringValue'] ?? 'Aucune description.';
     $imageUrl = $fields['image']['stringValue'] ?? 'images/default-image.png';
-    // exemplaire peut être integerValue ou doubleValue ou absent
     if (isset($fields['exemplaire']['integerValue'])) {
         $exemplaire = (int)$fields['exemplaire']['integerValue'];
     } else if (isset($fields['exemplaire']['doubleValue'])) {
@@ -56,7 +55,7 @@ if ($itemType === 'books') {
     } else {
         $exemplaire = 0;
     }
-} else { // C'est un mémoire ('theses')
+} else {
     $name = $fields['theme']['stringValue'] ?? 'Thème non disponible';
     $category = $fields['département']['stringValue'] ?? 'Non disponible';
     $author = $fields['name']['stringValue'] ?? 'Auteur non disponible';
@@ -74,12 +73,10 @@ if ($itemType === 'books') {
     $imageUrl = $fields['image']['stringValue'] ?? 'images/default-thesis.png';
 }
 
-// Pour les livres, la disponibilité est basée sur les exemplaires
 if ($itemType === 'books') {
     $isAvailable = (int)$exemplaire > 0;
 }
 
-// Mettre à jour le titre de la page
 $PAGE->set_title($name);
 $PAGE->set_heading($name);
 
@@ -121,13 +118,11 @@ function extractReservationIdsFromUserData($userFields) {
         if (isset($userFields[$etatField]['stringValue'])) {
             $currentStatus = $userFields[$etatField]['stringValue'];
             
-            // On considère comme "occupé" si c'est réservé ou emprunté
             if (($currentStatus === 'reserv' || $currentStatus === 'emprunt') &&
                 isset($userFields[$tabEtatField]['arrayValue']['values'])) {
                 
                 $tabEtatValues = $userFields[$tabEtatField]['arrayValue']['values'];
                 
-                // Indice 6 correspond au docId selon ta structure
                 if (count($tabEtatValues) > 6 && isset($tabEtatValues[6]['stringValue'])) {
                     $reservationIds[] = $tabEtatValues[6]['stringValue'];
                 }
@@ -151,7 +146,6 @@ if (isset($userData['documents'])) {
     }
 }
 
-// Vérification cruciale pour le bouton :
 $isAlreadyReserved = in_array($itemId, $userReservationIds);
 
 // 6. Affichage de la page
@@ -171,7 +165,6 @@ $html .= '</div>';
 $html .= '<div class="col-md-8">';
 $html .= '<h3>' . htmlspecialchars($name) . '</h3>';
 
-// --- Affichage conditionnel des informations ---
 if ($itemType === 'books') {
     $html .= '<p class="text-muted"><em>Par ' . htmlspecialchars($author) . '</em></p>';
     $html .= '<hr>';
@@ -183,13 +176,12 @@ if ($itemType === 'books') {
     }
     $html .= '<div class="mt-4"><h4>Description</h4><p>' . nl2br(htmlspecialchars($description)) . '</p></div>';
 
-} else { // Affichage pour les mémoires (AMÉLIORÉ)
+} else {
     $html .= '<p class="text-muted"><em>Par ' . htmlspecialchars($author) . ' (Matricule: ' . htmlspecialchars($matricule) . ')</em></p>';
     $html .= '<hr>';
     $html .= '<p><strong>Département :</strong> ' . htmlspecialchars($category) . '</p>';
     $html .= '<p><strong>Superviseur :</strong> ' . htmlspecialchars($superviseur) . '</p>';
     
-    // NOUVEAU : Affichage séparé des deux types de disponibilité
     $html .= '<div class="availability-section">';
     if ($hasPhysicalCopy) {
         $html .= '<p id="availabilityText" class="text-success"><strong>Exemplaire physique :</strong> Disponible à la bibliothèque</p>';
@@ -199,23 +191,22 @@ if ($itemType === 'books') {
     $html .= '</div>';
 }
 
-// NOUVELLE SECTION : Boutons d'action
+// BOUTONS D'ACTION
 $html .= '<div class="mt-4 text-center action-buttons">';
 
 if ($isAlreadyReserved) {
-    // Bouton grisé si déjà réservé par l'utilisateur (Logique switchBooks.js)
-    $html .= '<button class="btn btn-secondary btn-lg" disabled style="cursor: not-allowed; opacity: 0.6;">';
-    $html .= '<i class="fa fa-check-circle"></i> Déjà réservé';
+    // Bouton d'annulation si déjà réservé
+    $html .= '<button id="cancelBtn" class="btn btn-danger btn-lg" data-id="' . htmlspecialchars($itemId) . '" data-name="' . htmlspecialchars($name) . '">';
+    $html .= '<i class="fa fa-times-circle"></i> Annuler la réservation';
     $html .= '</button>';
 } else {
-    // Bouton normal si disponible ou bouton désactivé si hors stock
     if ($itemType === 'books') {
         if ($isAvailable) {
             $html .= '<button id="reserveBtn" class="btn btn-primary btn-lg" data-id="' . htmlspecialchars($itemId) . '" data-type="' . htmlspecialchars($itemType) . '">Réserver cet ouvrage</button>';
         } else {
             $html .= '<button class="btn btn-secondary btn-lg" disabled>Hors stock</button>';
         }
-    } else { // Pour les thèses
+    } else {
         if ($hasPhysicalCopy) {
             $html .= '<button id="reserveBtn" class="btn btn-primary btn-lg" data-id="' . htmlspecialchars($itemId) . '" data-type="' . htmlspecialchars($itemType) . '">Réserver l\'exemplaire</button>';
         } else {
@@ -224,24 +215,14 @@ if ($isAlreadyReserved) {
     }
 }
 
-$html .= '</div>'; // Fin des boutons d'action
-
-$html .= '</div>'; // Fin de la colonne de droite
-$html .= '</div>'; // Fin de la row
+$html .= '</div>';
+$html .= '</div>';
+$html .= '</div>';
 
 echo $OUTPUT->box($html, 'p-3');
 ?>
 
-<!--
-  Inclusion de la classe MoodleNotificationHelper (identique à celle utilisée dans switchbooks.js)
-  Elle est déclarée ici pour être disponible dans les scripts embarqués ci-dessous.
--->
 <script>
-/**
- * MoodleNotificationHelper
- * Classe utilitaire pour afficher des notifications et boîtes de confirmation
- * men utilisant core/notification de Moodle.
- */
 class MoodleNotificationHelper {
     static async show(message, type = 'info', title = '', options = {}) {
         const Notification = await new Promise(resolve => require(['core/notification'], resolve));
@@ -268,14 +249,12 @@ class MoodleNotificationHelper {
                 );
             } else {
                 try {
-                    // Tente l'alerte modale si un titre existe
                     if (title) {
                         Notification.alert(fullTitle, message, type);
                     } else {
                         throw 'no-title'; 
                     }
                 } catch (e) {
-                    // Fallback vers notification flottante (Toast)
                     Notification.addNotification({
                         message: fullTitle ? `<strong>${fullTitle}</strong><br>${message}` : message,
                         type: type,
@@ -287,7 +266,6 @@ class MoodleNotificationHelper {
         });
     }
 
-    // Un seul point d'entrée pour les appels rapides
     static success(m, t) { return this.show(m, 'success', t); }
     static error(m, t)   { return this.show(m, 'error', t); }
     static info(m, t)    { return this.show(m, 'info', t); }
@@ -297,24 +275,22 @@ class MoodleNotificationHelper {
 </script>
 
 <script>
-
-
 document.addEventListener('DOMContentLoaded', function() {
     const reserveBtn = document.getElementById('reserveBtn');
-    // données injectées depuis PHP
+    const cancelBtn = document.getElementById('cancelBtn');
+    
     const userDocId = <?php echo json_encode($userDocId); ?>;
     const itemId = <?php echo json_encode($itemId); ?>;
     const itemType = <?php echo json_encode($itemType); ?>;
-    const frontendItemName = <?php echo json_encode(addslashes($name)); ?>;
-    // état local de l'exemplaire (affichage)
+    const frontendItemName = <?php echo json_encode($name); ?>;
     let localExemplaireCount = <?php echo json_encode((int)$exemplaire); ?>;
 
+    // BOUTON RÉSERVER
     if (reserveBtn) {
         reserveBtn.addEventListener('click', async function() {
             const element = this;
 
             if (!userDocId) {
-                // Utiliser le helper de notification au lieu d'alert
                 await MoodleNotificationHelper.error(
                     'Impossible d\'identifier l\'utilisateur. Veuillez vous reconnecter.',
                     'Erreur d\'identification'
@@ -322,114 +298,139 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Message de confirmation adapté selon le type
             const confirmMessage = (itemType === 'books')
                 ? `Vous êtes sur le point de réserver :<br><strong>${frontendItemName}</strong>`
                 : `Vous êtes sur le point de réserver l'exemplaire physique de :<br><strong>${frontendItemName}</strong>`;
 
-            // Utilisation du helper de confirmation (renvoie {confirmed: true/false})
             const confirmation = await MoodleNotificationHelper.confirm(confirmMessage, 'Confirmation de réservation');
 
             if (!confirmation || !confirmation.confirmed) {
-                // L'utilisateur a annulé
                 return;
             }
 
-            // Sauvegarder l'état original du bouton pour restauration éventuelle
             const originalText = element.textContent;
             const originalClass = element.className;
-            const originalDisabled = element.disabled;
 
-            // Mettre à jour l'affichage du bouton pendant l'opération
             element.disabled = true;
             element.textContent = 'En cours...';
             element.style.cursor = 'wait';
 
             try {
-                const reservationData = {
-                    itemId: itemId,
-                    itemType: itemType,
-                    userDocId: userDocId
-                };
-
                 const response = await fetch('api_reserve.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(reservationData)
+                    body: JSON.stringify({
+                        itemId: itemId,
+                        itemType: itemType,
+                        userDocId: userDocId
+                    })
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    // Notification de succès via helper
                     await MoodleNotificationHelper.success(
                         'Votre réservation a été enregistrée avec succès !',
                         'Réservation réussie'
                     );
 
-                    // Mettre à jour le bouton localement pour indiquer la réussite
-                    element.textContent = (itemType === 'books') ? 'Réservé' : 'Exemplaire réservé';
-                    element.classList.remove('btn-primary');
-                    element.classList.add('btn-secondary');
-                    element.disabled = true;
-                    element.style.cursor = 'not-allowed';
-                    element.style.opacity = '0.8';
-
-                    // Mettre à jour le texte de disponibilité affiché si présent
-                    try {
-                        // décrémente le compteur local et met à jour l'affichage
-                        if (typeof localExemplaireCount === 'number') {
-                            localExemplaireCount = Math.max(0, localExemplaireCount - 1);
-                            const availabilityEl = document.getElementById('availabilityText');
-                            if (availabilityEl) {
-                                if (localExemplaireCount > 0) {
-                                    availabilityEl.classList.remove('text-danger');
-                                    availabilityEl.classList.add('text-success');
-                                    availabilityEl.innerHTML = '<strong>Disponibilité :</strong> En stock (' + localExemplaireCount + ' exemplaire(s) restant(s))';
-                                } else {
-                                    availabilityEl.classList.remove('text-success');
-                                    availabilityEl.classList.add('text-danger');
-                                    availabilityEl.innerHTML = '<strong>Disponibilité :</strong> Hors stock';
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        // Si la mise à jour échoue, on ignore (non critique)
-                        console.warn('Échec mise à jour disponibilité locale', e);
-                    }
-
-                    // Petite temporisation puis rechargement (optionnel)
-                    setTimeout(() => {
-                        // On peut recharger pour refléter l'état serveur ; commenter si inutile
-                        location.reload();
-                    }, 900);
+                    setTimeout(() => { location.reload(); }, 900);
 
                 } else {
-                    // Échec côté serveur -> notification d'erreur
                     await MoodleNotificationHelper.error(
                         data.message || 'Une erreur est survenue lors de la réservation.',
                         'Échec de la réservation'
                     );
 
-                    // Restaurer le bouton
-                    element.disabled = originalDisabled;
+                    element.disabled = false;
                     element.textContent = originalText;
                     element.className = originalClass;
-                    element.style.cursor = '';
                 }
 
             } catch (error) {
-                console.error('Erreur lors de la requête de réservation :', error);
+                console.error('Erreur:', error);
                 await MoodleNotificationHelper.error(
-                    'Une erreur réseau est survenue. Veuillez vérifier votre connexion et réessayer.',
+                    'Une erreur réseau est survenue.',
                     'Erreur réseau'
                 );
 
-                // Restaurer le bouton
                 element.disabled = false;
                 element.textContent = originalText;
                 element.className = originalClass;
-                element.style.cursor = '';
+            }
+        });
+    }
+
+    // BOUTON ANNULER
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', async function() {
+            const element = this;
+            const itemIdToCancel = element.getAttribute('data-id');
+            const itemNameToCancel = element.getAttribute('data-name');
+
+            if (!userDocId) {
+                await MoodleNotificationHelper.error(
+                    'Impossible d\'identifier l\'utilisateur.',
+                    'Erreur'
+                );
+                return;
+            }
+
+            const confirmation = await MoodleNotificationHelper.confirm(
+                `Êtes-vous sûr de vouloir annuler la réservation de :<br><strong>"${itemNameToCancel}"</strong>`,
+                'Confirmer l\'annulation'
+            );
+
+            if (!confirmation || !confirmation.confirmed) {
+                return;
+            }
+
+            const originalHTML = element.innerHTML;
+            element.disabled = true;
+            element.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Annulation...';
+
+            try {
+                console.log('Appel API Cancel avec:', { itemId: itemIdToCancel, userDocId: userDocId });
+                
+                const response = await fetch('api_cancel.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        itemId: itemIdToCancel,
+                        userDocId: userDocId
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Réponse API Cancel:', data);
+
+                if (data.success) {
+                    await MoodleNotificationHelper.success(
+                        'Votre réservation a été annulée avec succès !',
+                        'Annulation réussie'
+                    );
+
+                    setTimeout(() => { location.reload(); }, 800);
+
+                } else {
+                    await MoodleNotificationHelper.error(
+                        data.message || 'Une erreur est survenue.',
+                        'Échec de l\'annulation'
+                    );
+
+                    element.disabled = false;
+                    element.innerHTML = originalHTML;
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                await MoodleNotificationHelper.error(
+                    'Une erreur réseau est survenue.',
+                    'Erreur réseau'
+                );
+
+                element.disabled = false;
+                element.innerHTML = originalHTML;
             }
         });
     }
