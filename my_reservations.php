@@ -3,7 +3,6 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Google\Auth\Credentials\ServiceAccountCredentials;
 require_once('../../config.php');
 
-// Setup de la page
 require_login();
 global $USER, $OUTPUT; 
 $context = context_system::instance();
@@ -13,7 +12,6 @@ $PAGE->set_pagelayout('standard');
 $PAGE->set_title('Mes Réservations & Emprunts');
 $PAGE->set_heading('Mes Réservations et Emprunts');
 
-// Configuration et récupération des données de l'utilisateur
 $projectId = "biblio-cc84b";
 $serviceAccountJson = __DIR__.'/firebase_credentials.json';
 $scopes = ['https://www.googleapis.com/auth/datastore'];
@@ -22,7 +20,7 @@ $accessToken = $credentials->fetchAuthToken()['access_token'] ?? null;
 
 if (!$accessToken) {
     echo $OUTPUT->header();
-    echo $OUTPUT->box('<p class="text-danger text-center">Erreur de configuration : jeton d’accès Firebase manquant.</p>');
+    echo $OUTPUT->box('<p class="text-danger text-center">Erreur de configuration Firebase.</p>');
     echo $OUTPUT->footer();
     exit;
 }
@@ -38,12 +36,14 @@ curl_close($ch);
 
 $userData = json_decode($response, true);
 $userFields = null;
+$userDocId = null;
 
-// Trouver le document utilisateur par email
 if (isset($userData['documents'])) {
     foreach ($userData['documents'] as $document) {
         if (isset($document['fields']['email']['stringValue']) && $document['fields']['email']['stringValue'] == $USER->email) {
             $userFields = $document['fields'];
+            $pathParts = explode('/', $document['name']);
+            $userDocId = end($pathParts);
             break;
         }
     }
@@ -51,10 +51,9 @@ if (isset($userData['documents'])) {
 
 $activeReservations = [];
 $currentLoans = [];
-$maxReservations = 3; // A RENDRE DYNAMIQUE
+$maxReservations = 3;
 
 if ($userFields) {
-    //Extraction et catégorisation des états actifs (reserv ou emprunt)
     for ($i = 1; $i <= $maxReservations; $i++) {
         $statusField = "etat{$i}";
         $tabField = "tabEtat{$i}";
@@ -62,13 +61,9 @@ if ($userFields) {
         $status = $userFields[$statusField]['stringValue'] ?? 'ras';
         
         if ($status === 'reserv' || $status === 'emprunt') {
-            
             $tabValues = $userFields[$tabField]['arrayValue']['values'] ?? [];
 
-            // Structure attendue de tabEtat{X} : 
-            // [0: name, 1: cathegorie, 2: image, 3: exemplaires_restants, 4: collectionName, 5: Timestamp.now(), 6: bookDoc.id]
             if (count($tabValues) >= 7) { 
-                
                 $dateValue = $tabValues[5]['timestampValue'] ?? null;
                 $reservationDate = $dateValue ? (new DateTime($dateValue))->format('d/m/Y à H:i') : 'Date inconnue';
 
@@ -80,6 +75,7 @@ if ($userFields) {
                     'collectionName'=> $tabValues[4]['stringValue'] ?? 'BiblioBooks',
                     'date'          => $reservationDate,
                     'docId'         => $tabValues[6]['stringValue'] ?? null,
+                    'slotNumber'    => $i
                 ];
 
                 if ($status === 'reserv') {
@@ -87,26 +83,17 @@ if ($userFields) {
                 } elseif ($status === 'emprunt') {
                     $currentLoans[] = $item;
                 }
-            } else {
-                error_log("Biblio: Données de réservation incohérentes pour le slot {$i} de l'utilisateur.");
             }
         }
     }
 }
 
-
-// Affichage
 echo $OUTPUT->header();
 
-// Lien de retour
 $back_url = new moodle_url('/local/biblio_enspy/explore.php');
 echo html_writer::link($back_url, '‹ Retour à la bibliothèque', ['class' => 'btn btn-outline-secondary mb-4']);
 
-
-/**
- * Fonction d'affichage des listes
- */
-function display_list(array $items, string $title, string $color_class, string $action_label, bool $is_loan = false) {
+function display_list(array $items, string $title, string $color_class, string $action_label, bool $is_loan = false, $userDocId = null) {
     global $OUTPUT;
     
     $html = html_writer::tag('h3', $title, ['class' => "mt-4 pb-2 border-bottom text-{$color_class}"]);
@@ -126,7 +113,20 @@ function display_list(array $items, string $title, string $color_class, string $
             $html .= '<small class="text-muted">' . htmlspecialchars($item['cathegorie']) . ' | Date: ' . $item['date'] . '</small>';
             $html .= '</div>';
             
-            $html .= html_writer::link($detailsUrl, $action_label, ['class' => 'btn btn-sm btn-' . $color_class]);
+            $html .= '<div class="btn-group" role="group">';
+            $html .= html_writer::link($detailsUrl, 'Détails', ['class' => 'btn btn-sm btn-' . $color_class]);
+            
+            if (!$is_loan && $userDocId) {
+                $html .= '<button class="btn btn-sm btn-danger cancel-reservation-btn" 
+                          data-item-id="' . htmlspecialchars($item['docId']) . '" 
+                          data-item-name="' . htmlspecialchars($item['name']) . '"
+                          data-user-doc-id="' . htmlspecialchars($userDocId) . '"
+                          title="Annuler cette réservation">
+                          <i class="fa fa-times"></i> Annuler
+                          </button>';
+            }
+            
+            $html .= '</div>';
             $html .= '</li>';
         }
         $html .= '</ul>';
@@ -134,17 +134,135 @@ function display_list(array $items, string $title, string $color_class, string $
     return $html;
 }
 
-
-// Affichage des emprunts
-echo display_list($currentLoans, 'Documents Empruntés', 'success', 'Détails', true);
-
-// Affichage des réservations
-echo display_list($activeReservations, 'Réservations en Cours', 'warning', 'Détails', false);
-
+echo display_list($currentLoans, 'Documents Empruntés', 'success', 'Détails', true, $userDocId);
+echo display_list($activeReservations, 'Réservations en Cours', 'warning', 'Détails', false, $userDocId);
 
 if (empty($currentLoans) && empty($activeReservations)) {
     echo $OUTPUT->box('<p class="text-center mt-5">Vous n\'avez actuellement aucune réservation ou aucun emprunt actif.</p>', 'info');
 }
+?>
 
+<script>
+class MoodleNotificationHelper {
+    static async show(message, type = 'info', title = '', options = {}) {
+        const Notification = await new Promise(resolve => require(['core/notification'], resolve));
+        
+        const icons = {
+            success: 'fa-check-circle text-success',
+            error:   'fa-times-circle text-danger',
+            warning: 'fa-exclamation-triangle text-warning',
+            info:    'fa-info-circle text-info',
+            confirm: 'fa-question-circle text-primary'
+        };
+
+        const iconHtml = `<i class="fa ${icons[type] || icons.info}" aria-hidden="true"></i> `;
+        const fullTitle = title ? (iconHtml + title) : '';
+
+        return new Promise((resolve) => {
+            if (type === 'confirm') {
+                Notification.confirm(
+                    fullTitle || 'Confirmation',
+                    message,
+                    options.confirmText || 'Confirmer',
+                    options.cancelText || 'Annuler',
+                    (confirmed) => resolve({ confirmed })
+                );
+            } else {
+                try {
+                    if (title) {
+                        Notification.alert(fullTitle, message, type);
+                    } else {
+                        throw 'no-title'; 
+                    }
+                } catch (e) {
+                    Notification.addNotification({
+                        message: fullTitle ? `<strong>${fullTitle}</strong><br>${message}` : message,
+                        type: type,
+                        announce: true
+                    });
+                }
+                resolve({ shown: true });
+            }
+        });
+    }
+
+    static success(m, t) { return this.show(m, 'success', t); }
+    static error(m, t)   { return this.show(m, 'error', t); }
+    static info(m, t)    { return this.show(m, 'info', t); }
+    static warning(m, t) { return this.show(m, 'warning', t); }
+    static confirm(m, t) { return this.show(m, 'confirm', t); }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const cancelButtons = document.querySelectorAll('.cancel-reservation-btn');
+    
+    cancelButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+            const itemId = this.getAttribute('data-item-id');
+            const itemName = this.getAttribute('data-item-name');
+            const userDocId = this.getAttribute('data-user-doc-id');
+            
+            console.log('Annulation pour:', { itemId, itemName, userDocId });
+            
+            const confirmation = await MoodleNotificationHelper.confirm(
+                `Êtes-vous sûr de vouloir annuler la réservation de :<br><strong>"${itemName}"</strong>`,
+                'Confirmer l\'annulation'
+            );
+            
+            if (!confirmation.confirmed) {
+                return;
+            }
+            
+            const originalText = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = '<i class="fa fa-spinner fa-spin"></i> En cours...';
+            
+            try {
+                const response = await fetch('api_cancel.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        itemId: itemId,
+                        userDocId: userDocId
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Réponse:', data);
+                
+                if (data.success) {
+                    await MoodleNotificationHelper.success(
+                        'Votre réservation a été annulée avec succès !',
+                        'Annulation réussie'
+                    );
+                    
+                    setTimeout(() => { location.reload(); }, 800);
+                    
+                } else {
+                    await MoodleNotificationHelper.error(
+                        data.message || 'Une erreur est survenue.',
+                        'Échec de l\'annulation'
+                    );
+                    
+                    this.disabled = false;
+                    this.innerHTML = originalText;
+                }
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                await MoodleNotificationHelper.error(
+                    'Une erreur réseau est survenue.',
+                    'Erreur réseau'
+                );
+                
+                this.disabled = false;
+                this.innerHTML = originalText;
+            }
+        });
+    });
+});
+</script>
+
+<?php
 echo $OUTPUT->footer();
 ?>
