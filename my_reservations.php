@@ -1,11 +1,16 @@
 <?php
+/**
+ * Page "Mes Réservations" - Plugin BiblioEnspy
+ * Version avec boutons d'annulation
+ */
+
 require_once __DIR__ . '/vendor/autoload.php';
 use Google\Auth\Credentials\ServiceAccountCredentials;
 require_once('../../config.php');
 
-// Setup de la page
+// === CONFIGURATION PAGE ===
 require_login();
-global $USER, $OUTPUT; 
+global $USER, $OUTPUT, $PAGE;
 $context = context_system::instance();
 $PAGE->set_context($context);
 $PAGE->set_url('/local/biblio_enspy/my_reservations.php');
@@ -13,138 +18,259 @@ $PAGE->set_pagelayout('standard');
 $PAGE->set_title('Mes Réservations & Emprunts');
 $PAGE->set_heading('Mes Réservations et Emprunts');
 
-// Configuration et récupération des données de l'utilisateur
+// === CONFIGURATION FIRESTORE ===
 $projectId = "biblio-cc84b";
-$serviceAccountJson = __DIR__.'/firebase_credentials.json';
-$scopes = ['https://www.googleapis.com/auth/datastore'];
-$credentials = new ServiceAccountCredentials($scopes, $serviceAccountJson);
-$accessToken = $credentials->fetchAuthToken()['access_token'] ?? null;
+$serviceAccountJson = __DIR__ . '/firebase_credentials.json';
 
-if (!$accessToken) {
+if (!file_exists($serviceAccountJson)) {
     echo $OUTPUT->header();
-    echo $OUTPUT->box('<p class="text-danger text-center">Erreur de configuration : jeton d’accès Firebase manquant.</p>');
+    echo $OUTPUT->box('<p class="text-danger">Fichier Firebase credentials introuvable.</p>');
     echo $OUTPUT->footer();
     exit;
 }
 
+$scopes = ['https://www.googleapis.com/auth/datastore'];
+$credentials = new ServiceAccountCredentials($scopes, $serviceAccountJson);
+
+try {
+    $accessToken = $credentials->fetchAuthToken()['access_token'];
+} catch (Exception $e) {
+    echo $OUTPUT->header();
+    echo $OUTPUT->box('<p class="text-danger">Erreur Firebase: ' . htmlspecialchars($e->getMessage()) . '</p>');
+    echo $OUTPUT->footer();
+    exit;
+}
+
+// === RÉCUPÉRATION DONNÉES UTILISATEUR ===
 $usersUrl = "https://firestore.googleapis.com/v1/projects/{$projectId}/databases/(default)/documents/BiblioUser";
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $usersUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $accessToken, 'Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'Authorization: Bearer ' . $accessToken,
+    'Content-Type: application/json'
+]);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 $response = curl_exec($ch);
 curl_close($ch);
 
 $userData = json_decode($response, true);
 $userFields = null;
+$userDocId = null;
 
-// Trouver le document utilisateur par email
+// Trouver l'utilisateur courant
 if (isset($userData['documents'])) {
     foreach ($userData['documents'] as $document) {
-        if (isset($document['fields']['email']['stringValue']) && $document['fields']['email']['stringValue'] == $USER->email) {
+        if (isset($document['fields']['email']['stringValue']) && 
+            $document['fields']['email']['stringValue'] == $USER->email) {
+            
             $userFields = $document['fields'];
+            $pathParts = explode('/', $document['name']);
+            $userDocId = end($pathParts);
             break;
         }
     }
 }
 
-$activeReservations = [];
-$currentLoans = [];
-$maxReservations = 3; // A RENDRE DYNAMIQUE
+// === EXTRACTION DES RÉSERVATIONS ET EMPRUNTS ===
+$reservations = []; // Réservations en cours
+$emprunts = [];     // Emprunts en cours
+$maxSlots = 3;
 
 if ($userFields) {
-    //Extraction et catégorisation des états actifs (reserv ou emprunt)
-    for ($i = 1; $i <= $maxReservations; $i++) {
+    for ($i = 1; $i <= $maxSlots; $i++) {
         $statusField = "etat{$i}";
-        $tabField = "tabEtat{$i}";
+        $detailsField = "tabEtat{$i}";
         
         $status = $userFields[$statusField]['stringValue'] ?? 'ras';
         
         if ($status === 'reserv' || $status === 'emprunt') {
+            $details = $userFields[$detailsField]['arrayValue']['values'] ?? [];
             
-            $tabValues = $userFields[$tabField]['arrayValue']['values'] ?? [];
-
-            // Structure attendue de tabEtat{X} : 
-            // [0: name, 1: cathegorie, 2: image, 3: exemplaires_restants, 4: collectionName, 5: Timestamp.now(), 6: bookDoc.id]
-            if (count($tabValues) >= 7) { 
+            if (count($details) >= 7) {
+                $dateValue = $details[5]['timestampValue'] ?? null;
+                $dateStr = $dateValue ? date('d/m/Y H:i', strtotime($dateValue)) : 'Date inconnue';
                 
-                $dateValue = $tabValues[5]['timestampValue'] ?? null;
-                $reservationDate = $dateValue ? (new DateTime($dateValue))->format('d/m/Y à H:i') : 'Date inconnue';
-
                 $item = [
-                    'status'        => $status,
-                    'name'          => $tabValues[0]['stringValue'] ?? 'Titre inconnu',
-                    'cathegorie'    => $tabValues[1]['stringValue'] ?? '',
-                    'image'         => $tabValues[2]['stringValue'] ?? 'none',
-                    'collectionName'=> $tabValues[4]['stringValue'] ?? 'BiblioBooks',
-                    'date'          => $reservationDate,
-                    'docId'         => $tabValues[6]['stringValue'] ?? null,
+                    'slot' => $i,
+                    'status' => $status,
+                    'name' => $details[0]['stringValue'] ?? 'Sans titre',
+                    'categorie' => $details[1]['stringValue'] ?? '',
+                    'image' => $details[2]['stringValue'] ?? '',
+                    'collection' => $details[4]['stringValue'] ?? 'BiblioBooks',
+                    'date' => $dateStr,
+                    'docId' => $details[6]['stringValue'] ?? null
                 ];
-
+                
                 if ($status === 'reserv') {
-                    $activeReservations[] = $item;
-                } elseif ($status === 'emprunt') {
-                    $currentLoans[] = $item;
+                    $reservations[] = $item;
+                } else {
+                    $emprunts[] = $item;
                 }
-            } else {
-                error_log("Biblio: Données de réservation incohérentes pour le slot {$i} de l'utilisateur.");
             }
         }
     }
 }
 
-
-// Affichage
+// === AFFICHAGE DE LA PAGE ===
 echo $OUTPUT->header();
 
-// Lien de retour
-$back_url = new moodle_url('/local/biblio_enspy/explore.php');
-echo html_writer::link($back_url, '‹ Retour à la bibliothèque', ['class' => 'btn btn-outline-secondary mb-4']);
+// Lien retour
+$backUrl = new moodle_url('/local/biblio_enspy/explore.php');
+echo html_writer::link($backUrl, '‹ Retour à la bibliothèque', ['class' => 'btn btn-outline-secondary mb-4']);
 
-
-/**
- * Fonction d'affichage des listes
- */
-function display_list(array $items, string $title, string $color_class, string $action_label, bool $is_loan = false) {
-    global $OUTPUT;
+// === FONCTION D'AFFICHAGE D'UNE LISTE ===
+function afficherListe($items, $titre, $typeCouleur, $estEmprunt = false) {
+    global $userDocId;
     
-    $html = html_writer::tag('h3', $title, ['class' => "mt-4 pb-2 border-bottom text-{$color_class}"]);
+    $html = '<div class="card mb-4">';
+    $html .= '<div class="card-header bg-' . $typeCouleur . ' text-white">';
+    $html .= '<h4 class="mb-0"><i class="fa fa-' . ($estEmprunt ? 'book' : 'clock') . '"></i> ' . $titre . '</h4>';
+    $html .= '</div>';
+    $html .= '<div class="card-body">';
     
     if (empty($items)) {
-        $html .= $OUTPUT->box('<p class="text-center">Aucun document dans cette catégorie.</p>', $color_class . 'bg-light');
+        $html .= '<p class="text-center text-muted">Aucun document.</p>';
     } else {
-        $html .= '<ul class="list-group shadow-sm">';
-        foreach ($items as $item) {
-            $detailsUrl = new moodle_url('/local/biblio_enspy/view.php', ['id' => $item['docId'], 'type' => 'books']);
+        $html .= '<div class="list-group">';
+        
+        foreach ($items as $index => $item) {
+            $detailUrl = new moodle_url('/local/biblio_enspy/view.php', [
+                'id' => $item['docId'],
+                'type' => ($item['collection'] === 'BiblioThesis') ? 'theses' : 'books'
+            ]);
             
-            $status_badge = html_writer::tag('span', ($is_loan ? 'En prêt' : 'En attente'), ['class' => "badge badge-{$color_class} text-white ml-2"]);
-
-            $html .= '<li class="list-group-item d-flex justify-content-between align-items-center">';
+            $html .= '<div class="list-group-item" id="item-' . $index . '">';
+            $html .= '<div class="d-flex w-100 justify-content-between">';
             $html .= '<div>';
-            $html .= '<strong>' . htmlspecialchars($item['name']) . '</strong> ' . $status_badge . '<br>';
-            $html .= '<small class="text-muted">' . htmlspecialchars($item['cathegorie']) . ' | Date: ' . $item['date'] . '</small>';
+            $html .= '<h5 class="mb-1">' . htmlspecialchars($item['name']) . '</h5>';
+            $html .= '<p class="mb-1">';
+            $html .= '<span class="badge badge-' . $typeCouleur . '">';
+            $html .= $estEmprunt ? 'Emprunté' : 'Réservé';
+            $html .= '</span>';
+            $html .= ' <small class="text-muted">' . htmlspecialchars($item['categorie']) . '</small>';
+            $html .= '</p>';
+            $html .= '<small>Réservé le : ' . $item['date'] . '</small>';
             $html .= '</div>';
             
-            $html .= html_writer::link($detailsUrl, $action_label, ['class' => 'btn btn-sm btn-' . $color_class]);
-            $html .= '</li>';
+            $html .= '<div class="btn-group">';
+            $html .= '<a href="' . $detailUrl . '" class="btn btn-sm btn-outline-' . $typeCouleur . '">';
+            $html .= '<i class="fa fa-eye"></i> Détails';
+            $html .= '</a>';
+            
+            // Bouton ANNULATION uniquement pour les réservations
+            if (!$estEmprunt && $item['docId'] && $userDocId) {
+                $html .= '<button class="btn btn-sm btn-outline-danger ml-2 btn-annuler" ';
+                $html .= 'data-docid="' . htmlspecialchars($item['docId']) . '" ';
+                $html .= 'data-name="' . htmlspecialchars($item['name']) . '" ';
+                $html .= 'data-index="' . $index . '" ';
+                $html .= 'title="Annuler cette réservation">';
+                $html .= '<i class="fa fa-times"></i> Annuler';
+                $html .= '</button>';
+            }
+            
+            $html .= '</div>';
+            $html .= '</div>';
+            $html .= '</div>';
         }
-        $html .= '</ul>';
+        
+        $html .= '</div>';
     }
+    
+    $html .= '</div></div>';
     return $html;
 }
 
+// Affichage des sections
+echo afficherListe($emprunts, 'Documents Empruntés', 'success', true);
+echo afficherListe($reservations, 'Réservations en Cours', 'warning', false);
 
-// Affichage des emprunts
-echo display_list($currentLoans, 'Documents Empruntés', 'success', 'Détails', true);
-
-// Affichage des réservations
-echo display_list($activeReservations, 'Réservations en Cours', 'warning', 'Détails', false);
-
-
-if (empty($currentLoans) && empty($activeReservations)) {
-    echo $OUTPUT->box('<p class="text-center mt-5">Vous n\'avez actuellement aucune réservation ou aucun emprunt actif.</p>', 'info');
+if (empty($emprunts) && empty($reservations)) {
+    echo '<div class="alert alert-info text-center">';
+    echo '<i class="fa fa-info-circle fa-2x mb-3"></i><br>';
+    echo '<h4>Vous n\'avez aucune réservation ou emprunt actif</h4>';
+    echo '<p class="mb-0">Visitez la bibliothèque pour découvrir les documents disponibles.</p>';
+    echo '</div>';
 }
 
+// === JAVASCRIPT POUR L'ANNULATION ===
+?>
+<script>
+// Données PHP injectées
+const userDocId = <?php echo $userDocId ? json_encode($userDocId) : 'null'; ?>;
+
+// Gestion des boutons d'annulation
+document.addEventListener('DOMContentLoaded', function() {
+    const boutonsAnnuler = document.querySelectorAll('.btn-annuler');
+    
+    boutonsAnnuler.forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const docId = this.getAttribute('data-docid');
+            const nomDoc = this.getAttribute('data-name');
+            const index = this.getAttribute('data-index');
+            
+            // Confirmation
+            if (!confirm(`Voulez-vous annuler la réservation de :\n"${nomDoc}" ?`)) {
+                return;
+            }
+            
+            // Désactiver le bouton
+            const texteOriginal = this.innerHTML;
+            this.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+            this.disabled = true;
+            
+            try {
+                // Appel API
+                const reponse = await fetch('api_cancel.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        itemId: docId,
+                        itemType: 'books', // À ajuster si mémoires
+                        userDocId: userDocId
+                    })
+                });
+                
+                const donnees = await reponse.json();
+                
+                if (donnees.success) {
+                    // Succès - masquer l'élément
+                    const element = document.getElementById('item-' + index);
+                    if (element) {
+                        element.style.opacity = '0.5';
+                        element.style.transition = 'opacity 0.5s';
+                        
+                        setTimeout(() => {
+                            element.remove();
+                            
+                            // Si plus d'éléments, recharger
+                            const itemsRestants = document.querySelectorAll('.list-group-item').length;
+                            if (itemsRestants === 0) {
+                                location.reload();
+                            }
+                        }, 500);
+                    }
+                    
+                    alert('✅ Réservation annulée avec succès !');
+                    
+                } else {
+                    // Erreur
+                    alert('❌ Erreur: ' + (donnees.message || 'Inconnue'));
+                    this.innerHTML = texteOriginal;
+                    this.disabled = false;
+                }
+                
+            } catch (erreur) {
+                console.error('Erreur réseau:', erreur);
+                alert('❌ Erreur réseau. Veuillez réessayer.');
+                this.innerHTML = texteOriginal;
+                this.disabled = false;
+            }
+        });
+    });
+});
+</script>
+
+<?php
 echo $OUTPUT->footer();
 ?>

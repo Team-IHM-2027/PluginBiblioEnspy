@@ -5,7 +5,7 @@ var booksPerPage = 6;
 var thesesPerPage = 6;
 var isBook = true;
 var isThesis = false;
- 
+
 // --- FONCTION DE TRI ---
 function sortItems(items, type, sortBy) {
     const sortedItems = [...items];
@@ -13,8 +13,8 @@ function sortItems(items, type, sortBy) {
     switch(sortBy) {
         case 'title_asc':
             return sortedItems.sort((a, b) => {
-                                      const nameA = a.fields.name ? a.fields.name.stringValue.toLowerCase() : 
-       (a.fields.Nom ? a.fields.Nom.stringValue.toLowerCase() : '');
+                const nameA = a.fields.name ? a.fields.name.stringValue.toLowerCase() : 
+                             (a.fields.Nom ? a.fields.Nom.stringValue.toLowerCase() : '');
                 const nameB = b.fields.name ? b.fields.name.stringValue.toLowerCase() : 
                              (b.fields.Nom ? b.fields.Nom.stringValue.toLowerCase() : '');
                 return nameA.localeCompare(nameB);
@@ -66,7 +66,7 @@ function sortItems(items, type, sortBy) {
     }
 }
 
-// --- FONCTION CENTRALE DE FILTRAGE  ---
+// --- FONCTION CENTRALE DE FILTRAGE ---
 function applyFilters(resetPage = false) {
     if (resetPage) {
         currentBooksPage = 1;
@@ -104,142 +104,11 @@ function applyFilters(resetPage = false) {
     }
 }
 
-// fonction displayRecommendations 
-function displayRecommendations() {
-    const recommendationsList = document.getElementById('recommendationsList');
-    if (!recommendationsList) return;
-
-    const allItems = [...booksData, ...thesesData];
-    if (allItems.length === 0) {
-        recommendationsList.innerHTML = '<div class="no-recommendations">Aucun document à recommander pour le moment.</div>';
-        return;
-    }
-
-    // Mélanger les éléments
-    for (let i = allItems.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [allItems[i], allItems[j]] = [allItems[j], allItems[i]];
-    }
-
-    const recommendationPhrases = [
-        "Populaire dans votre département",
-        "Nouvel ajout à la bibliothèque",
-        "Basé sur votre niveau d'études",
-        "Document fréquemment consulté",
-        "Sujet en rapport avec vos intérêts",
-        "Mémoire de votre promotion"
-    ];
-
-    const recommendationsCount = Math.min(6, allItems.length);
-    const selectedItems = allItems.slice(0, recommendationsCount);
-
-    // Nettoyer et appliquer le style inline pour forcer l'horizontal
-    recommendationsList.innerHTML = '';
-    recommendationsList.style.display = 'flex';
-    recommendationsList.style.flexWrap = 'nowrap';
-    recommendationsList.style.overflowX = 'auto';
-    recommendationsList.style.overflowY = 'hidden';
-    recommendationsList.style.gap = '25px';
-    recommendationsList.style.padding = '15px 15px';
-    recommendationsList.style.boxSizing = 'border-box';
-    recommendationsList.style.alignItems = 'flex-start';
-    recommendationsList.style.scrollPaddingLeft = '5px';
-    recommendationsList.style.scrollPaddingRight = '5px';
-
-    selectedItems.forEach((item) => {
-        const isBookItem = !!item.fields.cathegorie;
-        const name = item.fields.name ? item.fields.name.stringValue : (item.fields.Nom ? item.fields.Nom.stringValue : 'Titre non disponible');
-        const category = item.fields.cathegorie ? item.fields.cathegorie.stringValue : (item.fields.département ? item.fields.département.stringValue : 'Catégorie non disponible');
-        const docId = item.name.split('/').pop();
-        const type = isBookItem ? 'books' : 'theses';
-        const typeLabel = isBookItem ? 'Livre' : 'Mémoire';
-        const detailUrl = `view.php?id=${docId}&type=${type}`;
-
-        const randomPhrase = recommendationPhrases[Math.floor(Math.random() * recommendationPhrases.length)];
-
-        const exemplaire = item.exemplaire || 0;
-        const disponibiliteHtml = exemplaire > 0 ?
-            `<span class="badge badge-success" title="${exemplaire} exemplaire(s) disponible(s)">${exemplaire}</span>` :
-            `<span class="badge badge-danger" title="Ce document est actuellement hors stock">0</span>`;
-
-        const truncatedName = name.length > 35 ? name.substring(0, 35) + '...' : name;
-        const truncatedCategory = category.length > 25 ? category.substring(0, 25) + '...' : category;
-
-        const itemHTML = `
-            <div class="recommendation-item" style="flex: 0 0 auto; width: 220px; box-sizing: border-box; min-height: 340px;">
-                <a href="${detailUrl}" class="recommendation-link" style="display: block; height: 100%; text-decoration: none; color: inherit;">
-                    <div class="recommendation-image" style="width: 100%; height: 220px; overflow: hidden; background: #f5f5f5;">
-                        <img src="${item.fields.image ? item.fields.image.stringValue : 'images/default-image.png'}"
-                             alt="${name}"
-                             onerror="this.src='images/default-image.png'"
-                             style="width: 100%; height: 100%; object-fit: cover; display:block;">
-                    </div>
-                    <div class="recommendation-content" style="padding: 12px; display: flex; flex-direction: column; flex: 1 1 auto; box-sizing: border-box; min-height: 100px;">
-                        <span class="recommendation-type" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-bottom: 8px;">${typeLabel}</span>
-                        <h4 class="recommendation-title" style="font-size: 1em; font-weight: 600; color: #333; margin: 0 0 px 0; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.6em;" title="${name}">${truncatedName}</h4>
-                        <p class="recommendation-category" style="font-size: 0.85em; color: #666; margin: 0 0 4px 0; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${category}">${truncatedCategory}</p>
-                        <div style="margin-bottom: 6px;">${disponibiliteHtml}</div>
-                        <p class="recommendation-reason" style="font-size: 0.8em; color: #17a2b8; margin: 0; padding-top: 6px; border-top: 1px dashed #e9ecef; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; flex-grow: 1; min-height: 2.6em;" title="${randomPhrase}">${randomPhrase}</p>
-                    </div>
-                </a>
-            </div>
-        `;
-        recommendationsList.innerHTML += itemHTML;
-    });
-}
-
-
-
-// --- FONCTION POUR LE DÉFILEMENT HORIZONTAL (tolérante aux boutons) ---
-function initHorizontalScroll() {
-    const recommendationsList = document.getElementById('recommendationsList');
-    const scrollLeftBtn = document.querySelector('.scroll-left');
-    const scrollRightBtn = document.querySelector('.scroll-right');
-    if (!recommendationsList) return;
-
-    const scrollAmount = 300;
-
-    // Si les boutons existent, on les connecte
-    if (scrollLeftBtn) {
-        scrollLeftBtn.addEventListener('click', () => {
-            recommendationsList.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-        });
-    }
-    if (scrollRightBtn) {
-        scrollRightBtn.addEventListener('click', () => {
-            recommendationsList.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-        });
-    }
-
-    // Afficher/masquer les boutons selon la position (si présents)
-    function updateScrollButtons() {
-        if (!recommendationsList) return;
-        if (scrollLeftBtn) {
-            scrollLeftBtn.style.opacity = recommendationsList.scrollLeft > 0 ? '1' : '0.5';
-        }
-        if (scrollRightBtn) {
-            const maxScrollLeft = recommendationsList.scrollWidth - recommendationsList.clientWidth;
-            scrollRightBtn.style.opacity = recommendationsList.scrollLeft < maxScrollLeft ? '1' : '0.5';
-        }
-    }
-
-    // Mise à jour quand on scroll
-    recommendationsList.addEventListener('scroll', updateScrollButtons);
-    // Permet le scroll horizontal au trackpad, et clavier
-    recommendationsList.tabIndex = 0;
-    recommendationsList.addEventListener('keydown', function(e) {
-        if (e.key === 'ArrowRight') recommendationsList.scrollBy({ left: 150, behavior: 'smooth' });
-        if (e.key === 'ArrowLeft') recommendationsList.scrollBy({ left: -150, behavior: 'smooth' });
-    });
-
-    // état initial
-    updateScrollButtons();
-}
-
-
-// --- FONCTION D'AFFICHAGE DES ITEMS  ---
+// --- FONCTION D'AFFICHAGE DES ITEMS ---
 function displayItems(items, type) {
     var listElement = document.getElementById(type + 'List');
+    if (!listElement) return;
+    
     listElement.innerHTML = ''; 
     listElement.style.display = 'flex';
 
@@ -262,8 +131,8 @@ function displayItems(items, type) {
         // Récupérer le nombre d'exemplaires
         var exemplaire = item.exemplaire || 0;
         
-        // DEBUG: Afficher l'ID dans la console pour vérification
-        console.log(`Item ID: ${docId}, Réservé: ${userReservationIds.includes(docId)}`);
+        // Vérifier si déjà réservé
+        const isAlreadyReserved = userReservationIds.includes(docId);
         
         // Préparer l'affichage des exemplaires
         var exemplaireHtml = '';
@@ -273,21 +142,21 @@ function displayItems(items, type) {
             exemplaireHtml = '<span class="text-danger" title="Ce document est actuellement hors stock"><strong>Hors Stock</strong></span>';
         }
 
-        // --- LOGIQUE POUR LE BOUTON RÉSERVER ---
+        // --- LOGIQUE POUR LE BOUTON RÉSERVER/ANNULER ---
         let reserveButtonHtml = '';
         
         // 1. Vérifier si le livre est déjà réservé par l'utilisateur
-        const isAlreadyReserved = userReservationIds.includes(docId);
-        
-        // 2. Vérifier la disponibilité
-        const isAvailable = exemplaire > 0;
-        
         if (isAlreadyReserved) {
-            // Livre déjà réservé → bouton désactivé
-            reserveButtonHtml = `<button class="btn btn-secondary book-btn" disabled style="cursor: not-allowed; opacity: 0.6;">
-                <i class="fa fa-check-circle"></i> Déjà réservé
+            // BOUTON D'ANNULATION
+            reserveButtonHtml = `<button class="btn btn-warning book-btn book-btn-cancel" 
+                data-id="${docId}" 
+                data-type="${type}" 
+                onclick="cancelReservation(this)"
+                style="cursor: pointer;"
+                title="Cliquez pour annuler cette réservation">
+                <i class="fa fa-times-circle"></i> Annuler
             </button>`;
-        } else if (!isAvailable) {
+        } else if (exemplaire <= 0) {
             // Pas disponible du tout
             reserveButtonHtml = `<button class="btn btn-secondary book-btn" disabled style="cursor: not-allowed; opacity: 0.6;">
                 Indisponible
@@ -325,18 +194,14 @@ function displayItems(items, type) {
     });
 }
 
-
-// --- FONCTION DE RÉSERVATION  ---
+// --- FONCTION DE RÉSERVATION ---
 async function reserveItem(element) {
     var itemId = element.getAttribute('data-id');
     var itemType = element.getAttribute('data-type');
     
     // VÉRIFICATION SUPPLEMENTAIRE : Empêcher la réservation si déjà réservé
     if (userReservationIds.includes(itemId)) {
-        await MoodleNotificationHelper.error(
-            'Vous avez déjà réservé ce document !',
-            'Réservation impossible'
-        );
+        alert('❌ Vous avez déjà réservé ce document !');
         return;
     }
     
@@ -344,24 +209,16 @@ async function reserveItem(element) {
     var item = allItems.find(i => i.name.split('/').pop() === itemId);
     
     if (!item) {
-        await MoodleNotificationHelper.error(
-            'Document introuvable',
-            'Erreur'
-        );
+        alert('❌ Document introuvable');
         return;
     }
     
     var itemName = item.fields.name ? item.fields.name.stringValue : 
                   (item.fields.Nom ? item.fields.Nom.stringValue : 'Nom non disponible');
     
-    // Utilisation de la notification de confirmation Moodle
-    const confirmation = await MoodleNotificationHelper.confirm(
-        `Vous êtes sur le point de réserver :<br><strong>"${itemName}"</strong>`,
-        'Confirmation de réservation'
-    );
-    
-    if (!confirmation.confirmed) {
-        return; // L'utilisateur a annulé
+    // Confirmation simple
+    if (!confirm(`Voulez-vous réserver :\n"${itemName}" ?`)) {
+        return;
     }
     
     const reservationData = {
@@ -373,7 +230,6 @@ async function reserveItem(element) {
     // Sauvegarder l'état original du bouton
     const originalText = element.textContent;
     const originalClass = element.className;
-    const originalCursor = element.style.cursor;
     
     // Mettre à jour l'état du bouton
     element.disabled = true;
@@ -392,11 +248,7 @@ async function reserveItem(element) {
         const data = await response.json();
         
         if (data.success) {
-            // Notification de succès
-            await MoodleNotificationHelper.success(
-                'Votre réservation a été enregistrée avec succès !',
-                'Réservation réussie'
-            );
+            alert('✅ Réservation réussie !');
             
             // 1. Mettre à jour la liste locale des réservations
             if (!userReservationIds.includes(itemId)) {
@@ -446,36 +298,149 @@ async function reserveItem(element) {
             }
             
         } else {
-            // Notification d'erreur
-            await MoodleNotificationHelper.error(
-                data.message || 'Une erreur est survenue lors de la réservation.',
-                'Échec de la réservation'
-            );
+            // Échec
+            alert('❌ Échec: ' + (data.message || 'Erreur inconnue'));
             
             // Restaurer le bouton
             element.disabled = false;
             element.textContent = originalText;
-            element.style.cursor = originalCursor;
+            element.className = originalClass;
+            element.style.cursor = '';
         }
         
     } catch (error) {
         console.error('Erreur lors de la réservation:', error);
-        
-        // Notification d'erreur réseau
-        await MoodleNotificationHelper.error(
-            'Une erreur réseau est survenue. Veuillez vérifier votre connexion et réessayer.',
-            'Erreur réseau'
-        );
+        alert('❌ Erreur réseau');
         
         // Restaurer le bouton
         element.disabled = false;
         element.textContent = originalText;
-        element.style.cursor = originalCursor;
+        element.className = originalClass;
+        element.style.cursor = '';
     }
 }
 
+// === NOUVELLE FONCTION : ANNULATION DE RÉSERVATION ===
+async function cancelReservation(element) {
+    const itemId = element.getAttribute('data-id');
+    const itemType = element.getAttribute('data-type');
+    
+    // Trouver le nom du document pour la confirmation
+    const allItems = [...booksData, ...thesesData];
+    const item = allItems.find(i => i.name.split('/').pop() === itemId);
+    
+    if (!item) {
+        alert('❌ Document introuvable');
+        return;
+    }
+    
+    const itemName = item.fields.name ? item.fields.name.stringValue : 
+                    (item.fields.Nom ? item.fields.Nom.stringValue : 'Nom non disponible');
+    
+    // Demander confirmation
+    if (!confirm(`Voulez-vous annuler la réservation de :\n"${itemName}" ?`)) {
+        return;
+    }
+    
+    // Sauvegarder l'état original du bouton
+    const originalText = element.textContent;
+    const originalClass = element.className;
+    
+    // Mettre à jour l'état du bouton
+    element.disabled = true;
+    element.textContent = 'Annulation...';
+    element.style.cursor = 'wait';
+    
+    try {
+        // Appeler l'API d'annulation
+        const response = await fetch('api_cancel.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                itemId: itemId,
+                itemType: itemType,
+                userDocId: userDocId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Réservation annulée !');
+            
+            // 1. Retirer de la liste des réservations locales
+            const index = userReservationIds.indexOf(itemId);
+            if (index > -1) {
+                userReservationIds.splice(index, 1);
+            }
+            
+            // 2. Mettre à jour le bouton
+            element.textContent = 'Annulé';
+            element.classList.remove('btn-warning', 'book-btn-cancel');
+            element.classList.add('btn-secondary');
+            element.disabled = true;
+            element.style.opacity = '0.6';
+            
+            // 3. Retirer le badge "Réservé par vous"
+            const parentElement = element.closest('.book-info');
+            if (parentElement) {
+                const badge = parentElement.querySelector('.badge-warning');
+                if (badge) {
+                    badge.remove();
+                }
+            }
+            
+            // 4. Mettre à jour le compteur d'exemplaires (incrémenter)
+            const itemIndex = allItems.findIndex(i => i.name.split('/').pop() === itemId);
+            if (itemIndex !== -1) {
+                // Incrémenter le compteur
+                allItems[itemIndex].exemplaire = (allItems[itemIndex].exemplaire || 0) + 1;
+                
+                // Mettre à jour l'affichage du compteur
+                const exemplaireSpan = document.querySelector(`[data-id="${itemId}"]`)
+                    ?.closest('.book-info')
+                    ?.querySelector('.text-success, .text-danger');
+                
+                if (exemplaireSpan) {
+                    const newCount = allItems[itemIndex].exemplaire;
+                    if (newCount > 0) {
+                        exemplaireSpan.innerHTML = `<strong>${newCount} exemplaire(s)</strong>`;
+                        exemplaireSpan.classList.remove('text-danger');
+                        exemplaireSpan.classList.add('text-success');
+                    }
+                }
+                
+                // 5. Si le document redevient disponible, changer le bouton pour les autres
+                // On recharge simplement les filtres pour une mise à jour complète
+                setTimeout(() => {
+                    applyFilters(false);
+                }, 1000);
+            }
+            
+        } else {
+            // Erreur
+            alert('❌ Échec: ' + (data.message || 'Erreur inconnue'));
+            
+            // Restaurer le bouton
+            element.disabled = false;
+            element.textContent = originalText;
+            element.className = originalClass;
+            element.style.cursor = '';
+        }
+        
+    } catch (error) {
+        console.error('Erreur lors de l\'annulation:', error);
+        alert('❌ Erreur réseau');
+        
+        // Restaurer le bouton
+        element.disabled = false;
+        element.textContent = originalText;
+        element.className = originalClass;
+        element.style.cursor = '';
+    }
+}
 
-// --- PAGINATION  ---
+// --- PAGINATION ---
 function renderPagination(items, type) {
     var paginationElement = document.querySelector('.pagination');
     if (paginationElement) paginationElement.remove();
@@ -539,125 +504,116 @@ function renderPagination(items, type) {
     }
 
     var contentArea = document.getElementById('contentArea');
-    contentArea.appendChild(paginationElement);
+    if (contentArea) {
+        contentArea.appendChild(paginationElement);
+    }
 }
 
 // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
 document.addEventListener('DOMContentLoaded', (event) => {
-    document.getElementById('searchBar').addEventListener('input', () => applyFilters(true));
-    document.getElementById('departmentFilter').addEventListener('change', () => applyFilters(true));
-
-    document.getElementById('switchBooks').addEventListener('click', function() {
-        if (isBook) return;
-        
-        // Mettre à jour l'état
-        isBook = true;
-        isThesis = false;
-        
-        // Afficher/masquer les listes
-        document.getElementById('booksList').style.display = 'flex';
-        document.getElementById('thesesList').style.display = 'none';
-        
-        // Mettre à jour les classes des boutons
-        this.classList.remove('btn-secondary');
-        this.classList.add('btn-primary', 'active');
-        
-        document.getElementById('switchTheses').classList.remove('btn-primary', 'active');
-        document.getElementById('switchTheses').classList.add('btn-secondary');
-        
-        applyFilters(true);
-    });
-
-    document.getElementById('switchTheses').addEventListener('click', function() {
-        if (isThesis) return;
-        
-        // Mettre à jour l'état
-        isBook = false;
-        isThesis = true;
-        
-        // Afficher/masquer les listes
-        document.getElementById('thesesList').style.display = 'flex';
-        document.getElementById('booksList').style.display = 'none';
-        
-        // Mettre à jour les classes des boutons
-        this.classList.remove('btn-secondary');
-        this.classList.add('btn-primary', 'active');
-        
-        document.getElementById('switchBooks').classList.remove('btn-primary', 'active');
-        document.getElementById('switchBooks').classList.add('btn-secondary');
-        
-        applyFilters(true);
-    });
-
-    // Initialisation (le bouton Livres est déjà actif par défaut)
-    document.getElementById('switchBooks').classList.add('active');
-    document.getElementById('sortFilter').addEventListener('change', () => applyFilters(true));
+    const searchBar = document.getElementById('searchBar');
+    const departmentFilter = document.getElementById('departmentFilter');
+    const sortFilter = document.getElementById('sortFilter');
     
-    applyFilters(true);
-    // Initialiser les recommandations si la fonction existe
-    if (typeof displayRecommendations === 'function') {
-        displayRecommendations();
+    if (searchBar) {
+        searchBar.addEventListener('input', () => applyFilters(true));
     }
     
-    if (typeof initHorizontalScroll === 'function') {
-        initHorizontalScroll();
+    if (departmentFilter) {
+        departmentFilter.addEventListener('change', () => applyFilters(true));
     }
-});
+    
+    if (sortFilter) {
+        sortFilter.addEventListener('change', () => applyFilters(true));
+    }
 
-/**
- * MoodleNotificationHelper
- * Classe utilitaire pour afficher des notifications et boîtes de confirmation
- * men utilisant core/notification de Moodle.
- */
-class MoodleNotificationHelper {
-    static async show(message, type = 'info', title = '', options = {}) {
-        const Notification = await new Promise(resolve => require(['core/notification'], resolve));
-        
-        const icons = {
-            success: 'fa-check-circle text-success',
-            error:   'fa-times-circle text-danger',
-            warning: 'fa-exclamation-triangle text-warning',
-            info:    'fa-info-circle text-info',
-            confirm: 'fa-question-circle text-primary'
-        };
-
-        const iconHtml = `<i class="fa ${icons[type] || icons.info}" aria-hidden="true"></i> `;
-        const fullTitle = title ? (iconHtml + title) : '';
-
-        return new Promise((resolve) => {
-            if (type === 'confirm') {
-                Notification.confirm(
-                    fullTitle || 'Confirmation',
-                    message,
-                    options.confirmText || 'Confirmer',
-                    options.cancelText || 'Annuler',
-                    (confirmed) => resolve({ confirmed })
-                );
-            } else {
-                try {
-                    // Tente l'alerte modale si un titre existe
-                    if (title) {
-                        Notification.alert(fullTitle, message, type);
-                    } else {
-                        throw 'no-title'; 
-                    }
-                } catch (e) {
-                    // Fallback vers notification flottante (Toast)
-                    Notification.addNotification({
-                        message: fullTitle ? `<strong>${fullTitle}</strong><br>${message}` : message,
-                        type: type,
-                        announce: true
-                    });
-                }
-                resolve({ shown: true });
+    const switchBooksBtn = document.getElementById('switchBooks');
+    const switchThesesBtn = document.getElementById('switchTheses');
+    
+    if (switchBooksBtn) {
+        switchBooksBtn.addEventListener('click', function() {
+            if (isBook) return;
+            
+            // Mettre à jour l'état
+            isBook = true;
+            isThesis = false;
+            
+            // Afficher/masquer les listes
+            const booksList = document.getElementById('booksList');
+            const thesesList = document.getElementById('thesesList');
+            if (booksList) booksList.style.display = 'flex';
+            if (thesesList) thesesList.style.display = 'none';
+            
+            // Mettre à jour les classes des boutons
+            this.classList.remove('btn-secondary');
+            this.classList.add('btn-primary', 'active');
+            
+            if (switchThesesBtn) {
+                switchThesesBtn.classList.remove('btn-primary', 'active');
+                switchThesesBtn.classList.add('btn-secondary');
             }
+            
+            applyFilters(true);
         });
     }
 
-    // Un seul point d'entrée pour les appels rapides
-    static success(m, t) { return this.show(m, 'success', t); }
-    static error(m, t)   { return this.show(m, 'error', t); }
-    static info(m, t)    { return this.show(m, 'info', t); }
-    static warning(m, t) { return this.show(m, 'warning', t); }
-    static confirm(m, t) { return this.show(m, 'confirm', t); }
+    if (switchThesesBtn) {
+        switchThesesBtn.addEventListener('click', function() {
+            if (isThesis) return;
+            
+            // Mettre à jour l'état
+            isBook = false;
+            isThesis = true;
+            
+            // Afficher/masquer les listes
+            const thesesList = document.getElementById('thesesList');
+            const booksList = document.getElementById('booksList');
+            if (thesesList) thesesList.style.display = 'flex';
+            if (booksList) booksList.style.display = 'none';
+            
+            // Mettre à jour les classes des boutons
+            this.classList.remove('btn-secondary');
+            this.classList.add('btn-primary', 'active');
+            
+            if (switchBooksBtn) {
+                switchBooksBtn.classList.remove('btn-primary', 'active');
+                switchBooksBtn.classList.add('btn-secondary');
+            }
+            
+            applyFilters(true);
+        });
+    }
+
+    // Initialisation
+    if (switchBooksBtn) {
+        switchBooksBtn.classList.add('active');
+    }
+    
+    applyFilters(true);
+});
+
+// --- NOTIFICATION HELPER SIMPLIFIÉ ---
+class SimpleNotificationHelper {
+    static success(message, title = 'Succès') {
+        alert(title + ': ' + message);
+    }
+    
+    static error(message, title = 'Erreur') {
+        alert(title + ': ' + message);
+    }
+    
+    static confirm(message, title = 'Confirmation') {
+        return confirm(title + ':\n\n' + message);
+    }
+}
+
+// Exporter les fonctions globales si besoin
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        applyFilters,
+        displayItems,
+        reserveItem,
+        cancelReservation,
+        renderPagination
+    };
 }

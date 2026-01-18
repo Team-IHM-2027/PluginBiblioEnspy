@@ -1,0 +1,46 @@
+[2026-01-18 10:48:11] [INFO] === API CANCEL DÉMARRÉ - VERSION COMMIT ATOMIQUE ===
+[2026-01-18 09:48:11] [INFO] Données reçues : {"itemId":"bydtVMWsZ9DHekn0RLG5","itemType":"books","userDocId":"lucrecekounou14@gmail.com"}
+[2026-01-18 09:48:11] [INFO] ItemID: bydtVMWsZ9DHekn0RLG5, UserDocID: lucrecekounou14@gmail.com
+[2026-01-18 09:48:12] [INFO] Début de la récupération de l'utilisateur
+[2026-01-18 09:48:15] [INFO] Récupération utilisateur - HTTP Code: 200
+[2026-01-18 09:48:15] [INFO] Utilisateur trouvé - Recherche du slot de réservation
+[2026-01-18 09:48:15] [INFO] Vérification slot 1 - Status: emprunt
+[2026-01-18 09:48:15] [INFO] Vérification slot 2 - Status: reserv
+[2026-01-18 09:48:15] [SUCCESS] ✅ Réservation trouvée dans slot 2, collection: BiblioBooks
+[2026-01-18 09:48:15] [INFO] Préparation de la transaction commit
+[2026-01-18 09:48:15] [INFO] Transaction commit préparée : {"writes":[{"transform":{"document":"projects\/biblio-cc84b\/databases\/(default)\/documents\/BiblioBooks\/bydtVMWsZ9DHekn0RLG5","fieldTransforms":[{"fieldPath":"exemplaire","increment":{"integerValue":"1"}}]}},{"update":{"name":"projects\/biblio-cc84b\/databases\/(default)\/documents\/BiblioUser\/lucrecekounou14@gmail.com","fields":{"etat2":{"stringValue":"ras"},"tabEtat2":{"arrayValue":{"values":[]}}}},"updateMask":{"fieldPaths":["etat2","tabEtat2"]}}]}
+[2026-01-18 09:48:17] [INFO] Transaction commit exécutée - HTTP Code: 200
+[2026-01-18 09:48:17] [SUCCESS] ✅ ANNULATION RÉUSSIE - Slot: 2, Collection: BiblioBooks
+[2026-01-18 09:48:17] [INFO] === API CANCEL TERMINÉ ===
+[2026-01-18 10:49:47] [INFO] === API CANCEL DÉMARRÉ - VERSION COMMIT ATOMIQUE ===
+[2026-01-18 09:49:47] [INFO] Données reçues : {"itemId":"mqDFiEE5bmhoSgnEg9Zo","itemType":"books","userDocId":"lucrecekounou14@gmail.com"}
+[2026-01-18 09:49:47] [INFO] ItemID: mqDFiEE5bmhoSgnEg9Zo, UserDocID: lucrecekounou14@gmail.com
+[2026-01-18 09:49:48] [INFO] Début de la récupération de l'utilisateur
+[2026-01-18 09:49:50] [INFO] Récupération utilisateur - HTTP Code: 200
+[2026-01-18 09:49:50] [INFO] Utilisateur trouvé - Recherche du slot de réservation
+[2026-01-18 09:49:50] [INFO] Vérification slot 1 - Status: emprunt
+[2026-01-18 09:49:50] [INFO] Vérification slot 2 - Status: ras
+[2026-01-18 09:49:50] [INFO] Vérification slot 3 - Status: reserv
+[2026-01-18 09:49:50] [SUCCESS] ✅ Réservation trouvée dans slot 3, collection: BiblioBooks
+[2026-01-18 09:49:50] [INFO] Préparation de la transaction commit
+[2026-01-18 09:49:50] [INFO] Transaction commit préparée : {"writes":[{"transform":{"document":"projects\/biblio-cc84b\/databases\/(default)\/documents\/BiblioBooks\/mqDFiEE5bmhoSgnEg9Zo","fieldTransforms":[{"fieldPath":"exemplaire","increment":{"integerValue":"1"}}]}},{"update":{"name":"projects\/biblio-cc84b\/databases\/(default)\/documents\/BiblioUser\/lucrecekounou14@gmail.com","fields":{"etat3":{"stringValue":"ras"},"tabEtat3":{"arrayValue":{"values":[]}}}},"updateMask":{"fieldPaths":["etat3","tabEtat3"]}}]}
+[2026-01-18 09:49:52] [INFO] Transaction commit exécutée - HTTP Code: 200
+[2026-01-18 09:49:52] [SUCCESS] ✅ ANNULATION RÉUSSIE - Slot: 3, Collection: BiblioBooks
+[2026-01-18 09:49:52] [INFO] === API CANCEL TERMINÉ ===
+[2026-01-18 10:50:39] [INFO] === API CANCEL DÉMARRÉ - VERSION COMMIT ATOMIQUE ===
+[2026-01-18 09:50:39] [INFO] Données reçues : {"itemId":"PvxBaQAqoRpkjBIhIBsn","itemType":"books","userDocId":"lucrecekounou14@gmail.com"}
+[2026-01-18 09:50:39] [INFO] ItemID: PvxBaQAqoRpkjBIhIBsn, UserDocID: lucrecekounou14@gmail.com
+[2026-01-18 10:54:15] [INFO] === API CANCEL DÉMARRÉ - VERSION COMMIT ATOMIQUE ===
+[2026-01-18 09:54:15] [INFO] Données reçues : {"itemId":"7VKIM8CWKJzoY8EWCQgX","itemType":"books","userDocId":"lucrecekounou14@gmail.com"}
+[2026-01-18 09:54:15] [INFO] ItemID: 7VKIM8CWKJzoY8EWCQgX, UserDocID: lucrecekounou14@gmail.com
+[2026-01-18 09:54:17] [INFO] Début de la récupération de l'utilisateur
+[2026-01-18 09:54:19] [INFO] Récupération utilisateur - HTTP Code: 200
+[2026-01-18 09:54:19] [INFO] Utilisateur trouvé - Recherche du slot de réservation
+[2026-01-18 09:54:19] [INFO] Vérification slot 1 - Status: emprunt
+[2026-01-18 09:54:19] [INFO] Vérification slot 2 - Status: reserv
+[2026-01-18 09:54:19] [SUCCESS] ✅ Réservation trouvée dans slot 2, collection: BiblioBooks
+[2026-01-18 09:54:19] [INFO] Préparation de la transaction commit
+[2026-01-18 09:54:19] [INFO] Transaction commit préparée : {"writes":[{"transform":{"document":"projects\/biblio-cc84b\/databases\/(default)\/documents\/BiblioBooks\/7VKIM8CWKJzoY8EWCQgX","fieldTransforms":[{"fieldPath":"exemplaire","increment":{"integerValue":"1"}}]}},{"update":{"name":"projects\/biblio-cc84b\/databases\/(default)\/documents\/BiblioUser\/lucrecekounou14@gmail.com","fields":{"etat2":{"stringValue":"ras"},"tabEtat2":{"arrayValue":{"values":[]}}}},"updateMask":{"fieldPaths":["etat2","tabEtat2"]}}]}
+[2026-01-18 09:54:21] [INFO] Transaction commit exécutée - HTTP Code: 200
+[2026-01-18 09:54:21] [SUCCESS] ✅ ANNULATION RÉUSSIE - Slot: 2, Collection: BiblioBooks
+[2026-01-18 09:54:21] [INFO] === API CANCEL TERMINÉ ===
