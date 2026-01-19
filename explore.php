@@ -56,9 +56,24 @@ if(!isloggedin() || isguestuser()) {
 
 // Configuration Firebase
 $serviceAccountJson = __DIR__.'/firebase_credentials.json';
+$firebase_data = json_decode(file_get_contents($serviceAccountJson), true);
 $scopes = ['https://www.googleapis.com/auth/datastore'];
 $credentials = new ServiceAccountCredentials($scopes, $serviceAccountJson);
 $accessToken = $credentials->fetchAuthToken()['access_token'];
+
+// Extraire les variables
+$projectId = $firebase_data['project_id'];
+$web = $firebase_data['web_config']; // Le nouveau bloc ajouté
+
+
+$config = [
+    'apiKey'            => $web['apiKey'],
+    'authDomain'        => $projectId . ".firebaseapp.com",
+    'projectId'         => $projectId,
+    'storageBucket'     => $projectId . ".appspot.com",
+    'messagingSenderId' => (string)$web['messagingSenderId'],
+    'appId'             => $web['appId']
+];
 
 // Configuration de la page Moodle
 $context = context_system::instance();
@@ -68,7 +83,38 @@ $PAGE->set_title('Bibliothèque ENSPY');
 $PAGE->set_heading('Bibliothèque ENSPY');
 $PAGE->set_pagelayout('standard');
 $PAGE->requires->css('/local/biblio_enspy/css/styles.css');
-$PAGE->requires->js('/local/biblio_enspy/amd/src/switchBooks.js');
+$PAGE->requires->js('/local/biblio_enspy/js/switchBooks.js');
+
+// NOUVEAU CODE POUR LES NOTIFICATIONS EN TEMPS RÉEL
+
+// Charger les bibliothèques Firebase depuis CDN
+$PAGE->requires->js(new moodle_url('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js'), true);
+$PAGE->requires->js(new moodle_url('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js'), true);
+
+// Charger le listener de notifications
+$PAGE->requires->js('/local/biblio_enspy/js/notification_listener.js');
+
+// Initialiser le listener après le chargement de la page
+$PAGE->requires->js_init_code("
+    require(['jquery'], function($) {
+        var attempts = 0;
+        var checkListener = setInterval(function() {
+            attempts++;
+            if (typeof BiblioNotificationListener !== 'undefined' && typeof BiblioNotificationListener.init === 'function') {
+                clearInterval(checkListener);
+                var firebaseConfig = " . json_encode($config) . ";
+                BiblioNotificationListener.init(firebaseConfig, '" . $USER->email . "');
+                console.log('BiblioNotificationListener initialized after ' + attempts + ' attempts');
+            }
+            if (attempts > 50) { // Sécurité 5 secondes
+                clearInterval(checkListener);
+                console.error('BiblioNotificationListener failed to load');
+            }
+        }, 100);
+    });
+");
+
+
 
 // Configuration Firestore
 $projectId = "biblio-cc84b";
@@ -145,7 +191,7 @@ if (isset($departmentsData['documents'])) {
 //================================================================
 function extractReservationIdsFromUserData($userFields) {
     $reservationIds = [];
-    $maxReservations = 3; // 3 états maximum
+    $maxReservations = 5; // 3 états maximum
     
     for ($i = 1; $i <= $maxReservations; $i++) { 
         $etatField = "etat{$i}";
@@ -194,7 +240,9 @@ if (!$userExists) {
     redirect(new moodle_url('/local/biblio_enspy/register.php'));
 }
 
-// ============ AFFICHAGE DE LA PAGE =====================================
+
+// ============ AFFICHAGE DE LA PAGE ====================================
+
 echo $OUTPUT->header();
 
 // Boîte de filtres

@@ -251,3 +251,34 @@ function local_biblio_enspy_require_service($exitOnFail = true) {
 
     return true;
 }
+
+
+//==================================== NOTIFICATION ================================================
+
+/**
+ * convertit une notification Firebase en notification native Moodle.
+ */
+
+function local_biblio_enspy_add_to_moodle_notif($firebase_notif) {
+    global $DB;
+
+    // 1. Trouver l'utilisateur Moodle par son email (userId dans Firebase)
+    $user = $DB->get_record('user', array('email' => $firebase_notif->userId));
+    if (!$user) return;
+
+    // 2. Création de l'objet de notification Moodle
+    $eventdata = new \core\message\message();
+    $eventdata->component         = 'local_biblio_enspy';    // Votre plugin
+    $eventdata->name              = 'reservation_updates';   // Type défini dans messages.php
+    $eventdata->userfrom          = \core_user::get_noreply_user();
+    $eventdata->userto            = $user;
+    $eventdata->subject           = $firebase_notif->title;
+    $eventdata->fullmessage       = $firebase_notif->message;
+    $eventdata->fullmessageformat = FORMAT_HTML;
+    $eventdata->fullmessagehtml   = '<p>'.$firebase_notif->message.'</p>';
+    $eventdata->smallmessage      = $firebase_notif->message;
+    $eventdata->notification      = 1; // 1 pour cloche, 0 pour message privé
+
+    // 3. Envoi vers la cloche native
+    return message_send($eventdata);
+}

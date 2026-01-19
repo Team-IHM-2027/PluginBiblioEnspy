@@ -72,8 +72,11 @@ $serviceAccountJson = __DIR__.'/firebase_credentials.json';
 $scopes = ['https://www.googleapis.com/auth/datastore'];
 $credentials = new ServiceAccountCredentials($scopes, $serviceAccountJson);
 $accessToken = $credentials->fetchAuthToken()['access_token'];
-$projectId = "biblio-cc84b";
-$firebaseApiKey = "AIzaSyC-7xG1TTllRRyMldk4mS7k_8BcjMTAWi8"; 
+
+$firebase_data = json_decode(file_get_contents($serviceAccountJson), true);
+$projectId = $firebase_data['project_id'];
+$web = $firebase_data['web_config'];
+$firebaseApiKey = $web['apiKey']; 
 
 $collectionDepartments = 'Departements';
 $urlDepartments = "https://firestore.googleapis.com/v1/projects/{$projectId}/databases/(default)/documents/{$collectionDepartments}";
