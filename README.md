@@ -1,4 +1,6 @@
-BiblioEnspy - Plugin Moodle (local_biblio_enspy) {Reprise de projet}
+BiblioEnspy - Plugin Moodle (local_biblio_enspy)
+
+                {Reprise de projet}
 
 Ce plugin est une extension logicielle pour Moodle de l'ecosysteme BiblioEnspy conçue pour moderniser l'accès aux ressources documentaires de l'ENSPY (École Nationale Supérieure Polytechnique de Yaoundé). Il crée un pont entre la plateforme pédagogique Moodle et le fonds documentaire BiblioEnspy de l'école via une synchronisation en temps.
 
@@ -64,5 +66,5 @@ Architecture Technique
 
 👥 Équipe Projet
 
-Ce projet est développé par les étudiants de 4GI-2027 (Génie Informatique) de l'ENSPY dans le cadre des travaux du cours dIHM.
-##L'actuel depot est une continuité du travaille des 2 promotions precedantes du 4GI.
+Ce travail est realisé par les étudiants de 4GI-2027 (Génie Informatique) de l'ENSPY dans le cadre des travaux du cours dIHM.
+##L'actuel depot est une continuité du projet des 2 promotions precedantes du 4GI.
