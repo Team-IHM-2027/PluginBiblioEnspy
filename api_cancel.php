@@ -14,6 +14,17 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Google\Auth\Credentials\ServiceAccountCredentials;
 require_once('../../config.php');
 
+// 1. Vérifier si la requête est bien en POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    // Option A : Rediriger vers l'accueil du plugin
+    $url = new moodle_url('/local/biblio_enspy/explore.php');
+    redirect($url, "Accès direct interdit. Redirection...", 3);
+    
+    // Option B : Envoyer une erreur 404 (plus sécurisé)
+    // send_header_404();
+    // die();
+}
+
 // Vérification de l'authentification
 require_login();
 if (!isloggedin() || isguestuser()) {

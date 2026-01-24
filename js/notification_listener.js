@@ -114,11 +114,11 @@ require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notifica
             console.error('Error listening to Firestore:', error);
         });
 
-        // Synchronisation initiale et périodique (toutes les 30 secondes)
+        // Synchronisation initiale et périodique (toutes les 20 secondes)
         self.performInitialSync();
         self.syncInterval = setInterval(function() {
             self.performInitialSync();
-        }, 30000);
+        }, 20000);
     };
 
     /**
