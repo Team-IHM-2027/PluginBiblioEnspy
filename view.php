@@ -10,6 +10,7 @@
 require_once __DIR__ . '/vendor/autoload.php';
 use Google\Auth\Credentials\ServiceAccountCredentials;
 require_once('../../config.php');
+require_once(__DIR__ . '/lib.php');
 
 // === 1. RÉCUPÉRATION ET VALIDATION DES PARAMÈTRES ===
 $itemId = required_param('id', PARAM_ALPHANUMEXT);
@@ -37,6 +38,12 @@ try {
     echo $OUTPUT->box('<p class="text-danger">Erreur de connexion à Firebase: ' . htmlspecialchars($e->getMessage()) . '</p>');
     echo $OUTPUT->footer();
     exit;
+}
+
+// Maintenance check
+list($maintenanceProjectId, $maintenanceToken) = biblio_load_google_credentials();
+if ($maintenanceProjectId && $maintenanceToken) {
+    biblio_require_no_maintenance($maintenanceProjectId, $maintenanceToken);
 }
 
 // === 4. RÉCUPÉRATION DU DOCUMENT ===

@@ -14,6 +14,9 @@ if (!$projectId || !$accessToken) {
     exit;
 }
 
+// Maintenance check
+biblio_require_no_maintenance($projectId, $accessToken);
+
 require_login();
 
 // Vérification statut utilisateur Firestore

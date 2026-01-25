@@ -4,6 +4,13 @@ use Google\Auth\Credentials\ServiceAccountCredentials;
 
 require_once('../../config.php');
 require_once($CFG->libdir.'/formslib.php');
+require_once(__DIR__ . '/lib.php');
+
+// Maintenance check
+list($maintenanceProjectId, $maintenanceToken) = biblio_load_google_credentials();
+if ($maintenanceProjectId && $maintenanceToken) {
+    biblio_require_no_maintenance($maintenanceProjectId, $maintenanceToken);
+}
 
 // --- SETUP DE BASE DE LA PAGE MOODLE ---
 $PAGE->set_url('/local/biblio_enspy/register.php');

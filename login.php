@@ -1,5 +1,12 @@
 <?php
 require_once('../../config.php');
+require_once(__DIR__ . '/lib.php');
+
+// Maintenance check
+list($projectId, $accessToken) = biblio_load_google_credentials();
+if ($projectId && $accessToken) {
+    biblio_require_no_maintenance($projectId, $accessToken);
+}
 
 $PAGE->set_url(new moodle_url('/local/biblio_enspy/login.php'));
 $PAGE->set_context(context_system::instance());

@@ -13,6 +13,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/vendor/autoload.php';
 use Google\Auth\Credentials\ServiceAccountCredentials;
 require_once('../../config.php');
+require_once(__DIR__ . '/lib.php');
 
 // 1. Vérifier si la requête est bien en POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -34,6 +35,12 @@ if (!isloggedin() || isguestuser()) {
         'message' => 'Accès refusé. Connexion requise.'
     ]);
     exit;
+}
+
+// Maintenance check
+list($maintenanceProjectId, $maintenanceToken) = biblio_load_google_credentials();
+if ($maintenanceProjectId && $maintenanceToken) {
+    biblio_require_no_maintenance($maintenanceProjectId, $maintenanceToken, true);
 }
 
 // Récupération et validation des données
