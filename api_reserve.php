@@ -3,22 +3,25 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/vendor/autoload.php';
 use Google\Auth\Credentials\ServiceAccountCredentials;
 require_once('../../config.php');
+require_once(__DIR__ . '/lib.php');
 
 // 1. Vérifier si la requête est bien en POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     // Option A : Rediriger vers l'accueil du plugin
     $url = new moodle_url('/local/biblio_enspy/explore.php');
     redirect($url, "Accès direct interdit. Redirection...", 3);
-    
-    // Option B : Envoyer une erreur 404 (plus sécurisé)
-    // send_header_404();
-    // die();
 }
 
 require_login();
 if (!isloggedin() || isguestuser()) {
     echo json_encode(['success' => false, 'message' => 'Accès refusé.']);
     exit;
+}
+
+// Maintenance check
+list($maintenanceProjectId, $maintenanceToken) = biblio_load_google_credentials();
+if ($maintenanceProjectId && $maintenanceToken) {
+    biblio_require_no_maintenance($maintenanceProjectId, $maintenanceToken, true);
 }
 
 $input = json_decode(file_get_contents('php://input'), true);

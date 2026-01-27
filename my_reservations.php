@@ -2,6 +2,7 @@
 require_once __DIR__ . '/vendor/autoload.php';
 use Google\Auth\Credentials\ServiceAccountCredentials;
 require_once('../../config.php');
+require_once(__DIR__ . '/lib.php');
 
 // Setup de la page
 require_login();
@@ -12,6 +13,12 @@ $PAGE->set_url('/local/biblio_enspy/my_reservations.php');
 $PAGE->set_pagelayout('standard');
 $PAGE->set_title('Mes Réservations & Emprunts');
 $PAGE->set_heading('Mes Réservations et Emprunts');
+
+// Maintenance check
+list($maintenanceProjectId, $maintenanceToken) = biblio_load_google_credentials();
+if ($maintenanceProjectId && $maintenanceToken) {
+    biblio_require_no_maintenance($maintenanceProjectId, $maintenanceToken);
+}
 
 // Configuration et récupération des données de l'utilisateur
 $projectId = "biblio-cc84b";

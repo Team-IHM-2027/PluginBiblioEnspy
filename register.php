@@ -4,16 +4,23 @@ use Google\Auth\Credentials\ServiceAccountCredentials;
 
 require_once('../../config.php');
 require_once($CFG->libdir.'/formslib.php');
+require_once(__DIR__ . '/lib.php');
 
 // --- SETUP DE BASE DE LA PAGE MOODLE ---
+require_login();
 $PAGE->set_url('/local/biblio_enspy/register.php');
 $PAGE->set_pagelayout('standard');
 $context = context_system::instance();
 $PAGE->set_context($context);
-require_login();
-
 $PAGE->set_title('Inscription à la bibliothèque');
 $PAGE->set_heading('Formulaire d\'inscription');
+
+
+// Maintenance check
+list($maintenanceProjectId, $maintenanceToken) = biblio_load_google_credentials();
+if ($maintenanceProjectId && $maintenanceToken) {
+    biblio_require_no_maintenance($maintenanceProjectId, $maintenanceToken);
+}
 
 // --- FONCTION API FIRESTORE ---
 function callFirestoreAPIForDepartments($url, $accessToken) {

@@ -9,8 +9,9 @@
 require_once __DIR__ . '/vendor/autoload.php';
 use Google\Auth\Credentials\ServiceAccountCredentials;
 require_once('../../config.php');
+require_once(__DIR__ . '/lib.php');
 
-// === 1. RÉCUPÉRATION ET VALIDATION DES PARAMÈTRES ===
+// === RÉCUPÉRATION ET VALIDATION DES PARAMÈTRES ===
 $itemId = required_param('id', PARAM_ALPHANUMEXT);
 $itemType = required_param('type', PARAM_ALPHA);
 $collection = ($itemType === 'books') ? 'BiblioBooks' : 'BiblioThesis';
@@ -22,6 +23,12 @@ $PAGE->set_context($context);
 $PAGE->set_url(new moodle_url('/local/biblio_enspy/view.php', ['id' => $itemId, 'type' => $itemType]));
 $PAGE->set_pagelayout('standard');
 $PAGE->requires->css('/local/biblio_enspy/css/styles.css');
+
+// Maintenance check
+list($maintenanceProjectId, $maintenanceToken) = biblio_load_google_credentials();
+if ($maintenanceProjectId && $maintenanceToken) {
+    biblio_require_no_maintenance($maintenanceProjectId, $maintenanceToken);
+}
 
 // === 3. CONFIGURATION FIRESTORE ===
 $projectId = "biblio-cc84b";

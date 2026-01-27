@@ -132,6 +132,60 @@ function local_biblio_enspy_firestore_get($url, $token) {
 }
 
 
+
+/**
+ * Check maintenance flag in Firestore (AppSettings or OrgSettings).
+ */
+function biblio_is_maintenance_mode($projectId, $accessToken) {
+    if (!$projectId || !$accessToken) {
+        return false;
+    }
+
+    $appUrl = "https://firestore.googleapis.com/v1/projects/{$projectId}/databases/(default)/documents/Configuration/AppSettings";
+    $orgUrl = "https://firestore.googleapis.com/v1/projects/{$projectId}/databases/(default)/documents/Configuration/OrgSettings";
+
+    $appDoc = local_biblio_enspy_firestore_get($appUrl, $accessToken);
+    $orgDoc = local_biblio_enspy_firestore_get($orgUrl, $accessToken);
+
+    $appMaintenance = isset($appDoc['fields']['MaintenanceMode']['booleanValue'])
+        ? (bool)$appDoc['fields']['MaintenanceMode']['booleanValue']
+        : false;
+    $orgMaintenance = isset($orgDoc['fields']['MaintenanceMode']['booleanValue'])
+        ? (bool)$orgDoc['fields']['MaintenanceMode']['booleanValue']
+        : false;
+
+    return $appMaintenance || $orgMaintenance;
+}
+
+/**
+ * Block access when maintenance mode is active.
+ */
+function biblio_require_no_maintenance($projectId, $accessToken, $asJson = false) {
+    if (!biblio_is_maintenance_mode($projectId, $accessToken)) {
+        return;
+    }
+
+    if ($asJson) {
+        http_response_code(503);
+        echo json_encode([
+            'success' => false,
+            'message' => "L'application est en maintenance. Veuillez reessayer plus tard."
+        ]);
+        exit;
+    }
+
+    global $OUTPUT, $CFG;
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification("L'application est actuellement en maintenance.", 'error');
+    echo html_writer::div('Veuillez revenir plus tard.', 'alert alert-warning');
+    echo html_writer::div('<a class="btn btn-primary mt-3" href="'.$CFG->wwwroot.'">Retour</a>');
+    echo $OUTPUT->footer();
+    exit;
+}
+
+
+
+
 /**
  * Generic Firestore request (GET/POST/PATCH/DELETE)
  */
