@@ -5,7 +5,7 @@ var booksPerPage = 6;
 var thesesPerPage = 6;
 var isBook = true;
 var isThesis = false;
- 
+
 // --- FONCTION DE TRI ---
 function sortItems(items, type, sortBy) {
     const sortedItems = [...items];
@@ -13,8 +13,8 @@ function sortItems(items, type, sortBy) {
     switch(sortBy) {
         case 'title_asc':
             return sortedItems.sort((a, b) => {
-                                      const nameA = a.fields.name ? a.fields.name.stringValue.toLowerCase() : 
-       (a.fields.Nom ? a.fields.Nom.stringValue.toLowerCase() : '');
+                const nameA = a.fields.name ? a.fields.name.stringValue.toLowerCase() : 
+                             (a.fields.Nom ? a.fields.Nom.stringValue.toLowerCase() : '');
                 const nameB = b.fields.name ? b.fields.name.stringValue.toLowerCase() : 
                              (b.fields.Nom ? b.fields.Nom.stringValue.toLowerCase() : '');
                 return nameA.localeCompare(nameB);
@@ -47,14 +47,14 @@ function sortItems(items, type, sortBy) {
                 return deptB.localeCompare(deptA);
             });
             
-        case 'availability_desc': // Plus d'exemplaires d'abord
+        case 'availability_desc':
             return sortedItems.sort((a, b) => {
                 const availA = a.exemplaire || 0;
                 const availB = b.exemplaire || 0;
                 return availB - availA;
             });
             
-        case 'availability_asc': // Moins d'exemplaires d'abord
+        case 'availability_asc':
             return sortedItems.sort((a, b) => {
                 const availA = a.exemplaire || 0;
                 const availB = b.exemplaire || 0;
@@ -66,7 +66,7 @@ function sortItems(items, type, sortBy) {
     }
 }
 
-// --- FONCTION CENTRALE DE FILTRAGE  ---
+// --- FONCTION CENTRALE DE FILTRAGE ---
 function applyFilters(resetPage = false) {
     if (resetPage) {
         currentBooksPage = 1;
@@ -91,7 +91,6 @@ function applyFilters(resetPage = false) {
     var filteredBooksData = booksData.filter(item => filterItem(item, 'books'));
     var filteredThesesData = thesesData.filter(item => filterItem(item, 'theses'));
 
-    // APPLIQUER LE TRI 
     filteredBooksData = sortItems(filteredBooksData, 'books', sortBy);
     filteredThesesData = sortItems(filteredThesesData, 'theses', sortBy);
 
@@ -104,7 +103,176 @@ function applyFilters(resetPage = false) {
     }
 }
 
-// fonction displayRecommendations 
+// ========================================================================
+// NOUVELLE FONCTION : Charger recommandations depuis l'API
+// ========================================================================
+async function loadUserRecommendations() {
+    const recommendationsList = document.getElementById('recommendationsList');
+    
+    if (!recommendationsList) {
+        console.warn('Element recommendationsList non trouvé');
+        return;
+    }
+    
+    // Afficher un loader
+    recommendationsList.innerHTML = `
+        <div style="display: flex; justify-content: center; align-items: center; width: 100%; min-height: 200px;">
+            <div style="text-align: center;">
+                <i class="fa fa-spinner fa-spin fa-3x text-primary"></i>
+                <p class="mt-3 text-muted">Chargement des recommandations...</p>
+            </div>
+        </div>
+    `;
+    
+    try {
+        const payload = {
+            booksData: window.booksData || [],
+            thesesData: window.thesesData || []
+        };
+        
+        const response = await fetch('ajax_recommendations_user.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.message || 'Erreur inconnue');
+        }
+        
+        // Afficher les recommandations de l'API
+        displayRecommendationsFromAPI(data.recommendations, data.source);
+        
+    } catch (error) {
+        console.error('Erreur chargement recommandations:', error);
+        // FALLBACK : Utiliser la fonction existante
+        displayRecommendations();
+    }
+}
+
+// ========================================================================
+// NOUVELLE FONCTION : Afficher recommandations depuis l'API
+// ========================================================================
+function displayRecommendationsFromAPI(recommendations, source) {
+    const recommendationsList = document.getElementById('recommendationsList');
+    
+    if (!recommendationsList) return;
+    
+    // Nettoyer
+    recommendationsList.innerHTML = '';
+    
+    // Style inline pour forcer l'horizontal
+    recommendationsList.style.display = 'flex';
+    recommendationsList.style.flexWrap = 'nowrap';
+    recommendationsList.style.overflowX = 'auto';
+    recommendationsList.style.overflowY = 'hidden';
+    recommendationsList.style.gap = '25px';
+    recommendationsList.style.padding = '15px 15px';
+    recommendationsList.style.boxSizing = 'border-box';
+    recommendationsList.style.alignItems = 'flex-start';
+    recommendationsList.style.scrollPaddingLeft = '5px';
+    recommendationsList.style.scrollPaddingRight = '5px';
+    
+    if (!recommendations || recommendations.length === 0) {
+        recommendationsList.innerHTML = `
+            <div class="no-recommendations" style="width: 100%; text-align: center; padding: 40px;">
+                <i class="fa fa-info-circle fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucune recommandation disponible pour le moment.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const recommendationPhrases = [
+        "Recommandé pour vous",
+        "Basé sur votre profil",
+        "Utilisateurs similaires ont consulté",
+        "Populaire dans votre département",
+        "En lien avec vos intérêts"
+    ];
+    
+    recommendations.forEach((item, index) => {
+        const isBookItem = !!item.fields.cathegorie;
+        const name = item.fields.name ? item.fields.name.stringValue : 
+                    (item.fields.Nom ? item.fields.Nom.stringValue : 
+                    (item.fields.theme ? item.fields.theme.stringValue : 'Titre non disponible'));
+        
+        const category = item.fields.cathegorie ? item.fields.cathegorie.stringValue : 
+                        (item.fields.département ? item.fields.département.stringValue : 'Catégorie non disponible');
+        
+        const docId = item.name.split('/').pop();
+        const type = isBookItem ? 'books' : 'theses';
+        const typeLabel = isBookItem ? 'Livre' : 'Mémoire';
+        const detailUrl = `view.php?id=${docId}&type=${type}`;
+        
+        const exemplaire = item.exemplaire || 0;
+        const disponibiliteHtml = exemplaire > 0 ?
+            `<span class="badge badge-success" title="${exemplaire} exemplaire(s) disponible(s)">${exemplaire}</span>` :
+            `<span class="badge badge-danger" title="Hors stock">0</span>`;
+        
+        const truncatedName = name.length > 35 ? name.substring(0, 35) + '...' : name;
+        const truncatedCategory = category.length > 25 ? category.substring(0, 25) + '...' : category;
+        
+        // Score de recommandation (si disponible depuis l'API)
+        const recScore = item.recommendation_score || item.similarity_score || 0;
+        const scoreDisplay = recScore > 0 ? `Score: ${Math.round(recScore)}%` : '';
+        
+        // Phrase selon la source
+        let reasonPhrase = source === 'api' && recScore > 75 ? 
+            "Fortement recommandé pour vous" : 
+            recommendationPhrases[index % recommendationPhrases.length];
+        
+        const imageUrl = item.fields.image ? item.fields.image.stringValue : 'images/default-image.png';
+        
+        const itemHTML = `
+            <div class="recommendation-item" style="flex: 0 0 auto; width: 220px; box-sizing: border-box; min-height: 340px;">
+                <a href="${detailUrl}" class="recommendation-link" style="display: block; height: 100%; text-decoration: none; color: inherit;">
+                    <div class="recommendation-image" style="width: 100%; height: 220px; overflow: hidden; background: #f5f5f5;">
+                        <img src="${imageUrl}" 
+                             alt="${name}"
+                             onerror="this.src='images/default-image.png'"
+                             style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                    </div>
+                    <div class="recommendation-content" style="padding: 12px; display: flex; flex-direction: column; box-sizing: border-box; min-height: 120px;">
+                        <span class="recommendation-type" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-bottom: 8px;">${typeLabel}</span>
+                        <h4 class="recommendation-title" style="font-size: 1em; font-weight: 600; color: #333; margin: 0 0 6px 0; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.4em;" title="${name}">${truncatedName}</h4>
+                        <p class="recommendation-category" style="font-size: 0.85em; color: #666; margin: 0 0 4px 0; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${category}">${truncatedCategory}</p>
+                        <div style="margin-bottom: 6px;">${disponibiliteHtml}</div>
+                        ${scoreDisplay ? `<p style="font-size: 0.75em; color: #28a745; margin: 4px 0; font-weight: 600;">${scoreDisplay}</p>` : ''}
+                        <p class="recommendation-reason" style="font-size: 0.8em; color: #17a2b8; margin: 0; padding-top: 6px; border-top: 1px dashed #e9ecef; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; flex-grow: 1;" title="${reasonPhrase}">${reasonPhrase}</p>
+                    </div>
+                </a>
+            </div>
+        `;
+        
+        recommendationsList.innerHTML += itemHTML;
+    });
+    
+    // Badge pour indiquer la source (si fallback)
+    if (source === 'fallback') {
+        const parentContainer = recommendationsList.parentElement;
+        if (parentContainer && !parentContainer.querySelector('.fallback-badge')) {
+            const fallbackBadge = document.createElement('div');
+            fallbackBadge.className = 'fallback-badge';
+            fallbackBadge.style.cssText = 'position: absolute; top: 10px; right: 10px; background: #ffc107; color: #000; padding: 5px 10px; border-radius: 5px; font-size: 0.75em; font-weight: 600; z-index: 10;';
+            fallbackBadge.innerHTML = '<i class="fa fa-random"></i> Sélection';
+            parentContainer.style.position = 'relative';
+            parentContainer.appendChild(fallbackBadge);
+        }
+    }
+}
+
+// ========================================================================
+// FONCTION ORIGINALE : displayRecommendations (FALLBACK)
+// ========================================================================
 function displayRecommendations() {
     const recommendationsList = document.getElementById('recommendationsList');
     if (!recommendationsList) return;
@@ -127,13 +295,13 @@ function displayRecommendations() {
         "Basé sur votre niveau d'études",
         "Document fréquemment consulté",
         "Sujet en rapport avec vos intérêts",
-        "Mémoire de votre promotion"
+        "Document de votre promotion"
     ];
 
-    const recommendationsCount = Math.min(6, allItems.length);
+    const recommendationsCount = Math.min(10, allItems.length);
     const selectedItems = allItems.slice(0, recommendationsCount);
 
-    // Nettoyer et appliquer le style inline pour forcer l'horizontal
+    // Nettoyer et appliquer le style inline
     recommendationsList.innerHTML = '';
     recommendationsList.style.display = 'flex';
     recommendationsList.style.flexWrap = 'nowrap';
@@ -176,7 +344,7 @@ function displayRecommendations() {
                     </div>
                     <div class="recommendation-content" style="padding: 12px; display: flex; flex-direction: column; flex: 1 1 auto; box-sizing: border-box; min-height: 100px;">
                         <span class="recommendation-type" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-bottom: 8px;">${typeLabel}</span>
-                        <h4 class="recommendation-title" style="font-size: 1em; font-weight: 600; color: #333; margin: 0 0 px 0; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.6em;" title="${name}">${truncatedName}</h4>
+                        <h4 class="recommendation-title" style="font-size: 1em; font-weight: 600; color: #333; margin: 0 0 6px 0; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.6em;" title="${name}">${truncatedName}</h4>
                         <p class="recommendation-category" style="font-size: 0.85em; color: #666; margin: 0 0 4px 0; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${category}">${truncatedCategory}</p>
                         <div style="margin-bottom: 6px;">${disponibiliteHtml}</div>
                         <p class="recommendation-reason" style="font-size: 0.8em; color: #17a2b8; margin: 0; padding-top: 6px; border-top: 1px dashed #e9ecef; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; flex-grow: 1; min-height: 2.6em;" title="${randomPhrase}">${randomPhrase}</p>
@@ -188,9 +356,7 @@ function displayRecommendations() {
     });
 }
 
-
-
-// --- FONCTION POUR LE DÉFILEMENT HORIZONTAL (tolérante aux boutons) ---
+// --- FONCTION POUR LE DÉFILEMENT HORIZONTAL ---
 function initHorizontalScroll() {
     const recommendationsList = document.getElementById('recommendationsList');
     const scrollLeftBtn = document.querySelector('.scroll-left');
@@ -199,7 +365,6 @@ function initHorizontalScroll() {
 
     const scrollAmount = 300;
 
-    // Si les boutons existent, on les connecte
     if (scrollLeftBtn) {
         scrollLeftBtn.addEventListener('click', () => {
             recommendationsList.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
@@ -211,7 +376,6 @@ function initHorizontalScroll() {
         });
     }
 
-    // Afficher/masquer les boutons selon la position (si présents)
     function updateScrollButtons() {
         if (!recommendationsList) return;
         if (scrollLeftBtn) {
@@ -223,21 +387,17 @@ function initHorizontalScroll() {
         }
     }
 
-    // Mise à jour quand on scroll
     recommendationsList.addEventListener('scroll', updateScrollButtons);
-    // Permet le scroll horizontal au trackpad, et clavier
     recommendationsList.tabIndex = 0;
     recommendationsList.addEventListener('keydown', function(e) {
         if (e.key === 'ArrowRight') recommendationsList.scrollBy({ left: 150, behavior: 'smooth' });
         if (e.key === 'ArrowLeft') recommendationsList.scrollBy({ left: -150, behavior: 'smooth' });
     });
 
-    // état initial
     updateScrollButtons();
 }
 
-
-// --- FONCTION D'AFFICHAGE DES ITEMS  ---
+// --- FONCTION D'AFFICHAGE DES ITEMS ---
 function displayItems(items, type) {
     var listElement = document.getElementById(type + 'List');
     listElement.innerHTML = ''; 
@@ -259,13 +419,8 @@ function displayItems(items, type) {
         var docId = item.name.split('/').pop();
         const detailUrl = `view.php?id=${docId}&type=${type}`;
         
-        // Récupérer le nombre d'exemplaires
         var exemplaire = item.exemplaire || 0;
         
-        // DEBUG: Afficher l'ID dans la console pour vérification
-        console.log(`Item ID: ${docId}, Réservé: ${userReservationIds.includes(docId)}`);
-        
-        // Préparer l'affichage des exemplaires
         var exemplaireHtml = '';
         if (exemplaire > 0) {
             exemplaireHtml = '<span class="text-success" title="Nombre d\'exemplaire(s) disponible(s) dans la bibliotheque"><strong>' + exemplaire + ' exemplaire(s)</strong></span>';
@@ -273,27 +428,19 @@ function displayItems(items, type) {
             exemplaireHtml = '<span class="text-danger" title="Ce document est actuellement hors stock"><strong>Hors Stock</strong></span>';
         }
 
-        // --- LOGIQUE POUR LE BOUTON RÉSERVER ---
         let reserveButtonHtml = '';
-        
-        // 1. Vérifier si le livre est déjà réservé par l'utilisateur
         const isAlreadyReserved = userReservationIds.includes(docId);
-        
-        // 2. Vérifier la disponibilité
         const isAvailable = exemplaire > 0;
         
         if (isAlreadyReserved) {
-            // Livre déjà réservé → bouton désactivé
             reserveButtonHtml = `<button class="btn btn-secondary book-btn" disabled style="cursor: not-allowed; opacity: 0.6;">
                 <i class="fa fa-check-circle"></i> Déjà réservé
             </button>`;
         } else if (!isAvailable) {
-            // Pas disponible du tout
             reserveButtonHtml = `<button class="btn btn-secondary book-btn" disabled style="cursor: not-allowed; opacity: 0.6;">
                 Indisponible
             </button>`;
         } else {
-            // Disponible et non réservé → bouton actif
             reserveButtonHtml = `<button class="btn btn-primary book-btn book-btn-reserve" 
                 data-id="${docId}" 
                 data-type="${type}" 
@@ -325,13 +472,11 @@ function displayItems(items, type) {
     });
 }
 
-
-// --- FONCTION DE RÉSERVATION  ---
+// --- FONCTION DE RÉSERVATION ---
 async function reserveItem(element) {
     var itemId = element.getAttribute('data-id');
     var itemType = element.getAttribute('data-type');
     
-    // VÉRIFICATION SUPPLEMENTAIRE : Empêcher la réservation si déjà réservé
     if (userReservationIds.includes(itemId)) {
         await MoodleNotificationHelper.error(
             'Vous avez déjà réservé ce document !',
@@ -354,14 +499,13 @@ async function reserveItem(element) {
     var itemName = item.fields.name ? item.fields.name.stringValue : 
                   (item.fields.Nom ? item.fields.Nom.stringValue : 'Nom non disponible');
     
-    // Utilisation de la notification de confirmation Moodle
     const confirmation = await MoodleNotificationHelper.confirm(
         `Vous êtes sur le point de réserver :<br><strong>"${itemName}"</strong>`,
         'Confirmation de réservation'
     );
     
     if (!confirmation.confirmed) {
-        return; // L'utilisateur a annulé
+        return;
     }
     
     const reservationData = {
@@ -370,12 +514,10 @@ async function reserveItem(element) {
         userDocId: userDocId
     };
 
-    // Sauvegarder l'état original du bouton
     const originalText = element.textContent;
     const originalClass = element.className;
     const originalCursor = element.style.cursor;
     
-    // Mettre à jour l'état du bouton
     element.disabled = true;
     element.textContent = 'En cours...';
     element.style.cursor = 'wait';
@@ -392,18 +534,15 @@ async function reserveItem(element) {
         const data = await response.json();
         
         if (data.success) {
-            // Notification de succès
             await MoodleNotificationHelper.success(
                 'Votre réservation a été enregistrée avec succès !',
                 'Réservation réussie'
             );
             
-            // 1. Mettre à jour la liste locale des réservations
             if (!userReservationIds.includes(itemId)) {
                 userReservationIds.push(itemId);
             }
             
-            // 2. Mettre à jour l'affichage du bouton
             element.textContent = 'Réservé';
             element.classList.remove('btn-primary', 'book-btn-reserve');
             element.classList.add('btn-secondary');
@@ -411,7 +550,6 @@ async function reserveItem(element) {
             element.style.cursor = 'not-allowed';
             element.style.opacity = '0.6';
             
-            // 3. Mettre à jour le badge "Réservé par vous"
             const parentElement = element.closest('.book-info');
             if (parentElement) {
                 const categoryElement = parentElement.querySelector('.book-category');
@@ -423,12 +561,10 @@ async function reserveItem(element) {
                 }
             }
             
-            // 4. Mettre à jour le compteur d'exemplaires
             const itemIndex = allItems.findIndex(i => i.name.split('/').pop() === itemId);
             if (itemIndex !== -1 && allItems[itemIndex].exemplaire > 0) {
                 allItems[itemIndex].exemplaire--;
                 
-                // Mettre à jour l'affichage du compteur
                 const exemplaireSpan = document.querySelector(`[data-id="${itemId}"]`)
                     ?.closest('.book-info')
                     ?.querySelector('.text-success, .text-danger');
@@ -446,13 +582,11 @@ async function reserveItem(element) {
             }
             
         } else {
-            // Notification d'erreur
             await MoodleNotificationHelper.error(
                 data.message || 'Une erreur est survenue lors de la réservation.',
                 'Échec de la réservation'
             );
             
-            // Restaurer le bouton
             element.disabled = false;
             element.textContent = originalText;
             element.style.cursor = originalCursor;
@@ -461,21 +595,18 @@ async function reserveItem(element) {
     } catch (error) {
         console.error('Erreur lors de la réservation:', error);
         
-        // Notification d'erreur réseau
         await MoodleNotificationHelper.error(
             'Une erreur réseau est survenue. Veuillez vérifier votre connexion et réessayer.',
             'Erreur réseau'
         );
         
-        // Restaurer le bouton
         element.disabled = false;
         element.textContent = originalText;
         element.style.cursor = originalCursor;
     }
 }
 
-
-// --- PAGINATION  ---
+// --- PAGINATION ---
 function renderPagination(items, type) {
     var paginationElement = document.querySelector('.pagination');
     if (paginationElement) paginationElement.remove();
@@ -550,15 +681,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
     document.getElementById('switchBooks').addEventListener('click', function() {
         if (isBook) return;
         
-        // Mettre à jour l'état
         isBook = true;
         isThesis = false;
         
-        // Afficher/masquer les listes
         document.getElementById('booksList').style.display = 'flex';
         document.getElementById('thesesList').style.display = 'none';
         
-        // Mettre à jour les classes des boutons
         this.classList.remove('btn-secondary');
         this.classList.add('btn-primary', 'active');
         
@@ -571,15 +699,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
     document.getElementById('switchTheses').addEventListener('click', function() {
         if (isThesis) return;
         
-        // Mettre à jour l'état
         isBook = false;
         isThesis = true;
         
-        // Afficher/masquer les listes
         document.getElementById('thesesList').style.display = 'flex';
         document.getElementById('booksList').style.display = 'none';
         
-        // Mettre à jour les classes des boutons
         this.classList.remove('btn-secondary');
         this.classList.add('btn-primary', 'active');
         
@@ -589,25 +714,22 @@ document.addEventListener('DOMContentLoaded', (event) => {
         applyFilters(true);
     });
 
-    // Initialisation (le bouton Livres est déjà actif par défaut)
     document.getElementById('switchBooks').classList.add('active');
     document.getElementById('sortFilter').addEventListener('change', () => applyFilters(true));
     
     applyFilters(true);
-    // Initialiser les recommandations si la fonction existe
-    if (typeof displayRecommendations === 'function') {
-        displayRecommendations();
+    
+    // *** MODIFICATION PRINCIPALE : Charger recommandations depuis l'API ***
+    if (typeof loadUserRecommendations === 'function') {
+        loadUserRecommendations();
     }
     
-    if (typeof initHorizontalScroll === 'function') {
-        initHorizontalScroll();
-    }
+    // Initialiser le scroll après chargement des recommandations
+    setTimeout(initHorizontalScroll, 500);
 });
 
 /**
  * MoodleNotificationHelper
- * Classe utilitaire pour afficher des notifications et boîtes de confirmation
- * men utilisant core/notification de Moodle.
  */
 class MoodleNotificationHelper {
     static async show(message, type = 'info', title = '', options = {}) {
@@ -635,14 +757,12 @@ class MoodleNotificationHelper {
                 );
             } else {
                 try {
-                    // Tente l'alerte modale si un titre existe
                     if (title) {
                         Notification.alert(fullTitle, message, type);
                     } else {
                         throw 'no-title'; 
                     }
                 } catch (e) {
-                    // Fallback vers notification flottante (Toast)
                     Notification.addNotification({
                         message: fullTitle ? `<strong>${fullTitle}</strong><br>${message}` : message,
                         type: type,
@@ -654,7 +774,6 @@ class MoodleNotificationHelper {
         });
     }
 
-    // Un seul point d'entrée pour les appels rapides
     static success(m, t) { return this.show(m, 'success', t); }
     static error(m, t)   { return this.show(m, 'error', t); }
     static info(m, t)    { return this.show(m, 'info', t); }

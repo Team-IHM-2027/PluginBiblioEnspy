@@ -4,7 +4,6 @@
  * 
  * @package    local_biblio_enspy
  * @copyright  2026
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 require_once __DIR__ . '/vendor/autoload.php';
@@ -135,7 +134,7 @@ try {
                 $userDocId = end($pathParts);
                 
                 // Extraction des IDs réservés/empruntés
-                for ($i = 1; $i <= 3; $i++) {
+                for ($i = 0; $i < 5; $i++) {
                     $etatField = "etat{$i}";
                     $tabEtatField = "tabEtat{$i}";
                     
@@ -585,6 +584,370 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+
+
+<!-- ===== SECTION RECOMMANDATIONS DE DOCUMENTS SIMILAIRES (SCROLLABLE) ===== -->
+
+<div class="container-fluid mt-5 pt-4 border-top">
+    <h3 class="text-center mb-4">
+        <i class="fa fa-lightbulb-o text-warning"></i>
+        Documents similaires qui pourraient vous intéresser
+    </h3>
+    
+    <!-- Structure identique à explore.php pour l'affichage horizontal -->
+    <div class="recommendations-section" style="position: relative;">
+        <div class="recommendations-scroll-container">
+            <!-- Loader initial -->
+            <div id="similar-documents-loader" style="display: flex; justify-content: center; align-items: center; min-height: 200px;">
+                <div style="text-align: center;">
+                    <i class="fa fa-spinner fa-spin fa-3x text-primary"></i>
+                    <p class="mt-3 text-muted">Recherche de documents similaires en cours...</p>
+                </div>
+            </div>
+            
+            <!-- Liste des documents similaires (style horizontal comme explore.php) -->
+            <div id="similar-documents-list" class="recommendations-list" style="display: none;"></div>
+            
+            <!-- Message si aucun document -->
+            <div id="similar-documents-empty" style="display: none; text-align: center; padding: 40px;">
+                <i class="fa fa-info-circle fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucun document similaire trouvé.</p>
+            </div>
+        </div>
+        
+        <!-- Boutons de scroll (identiques à explore.php) -->
+        <button class="scroll-left-similar" aria-label="Left" style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 10; background: rgba(255,255,255,0.9); border: 1px solid #ddd; width: 40px; height: 40px; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">&lsaquo;</button>
+        <button class="scroll-right-similar" aria-label="Right" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 10; background: rgba(255,255,255,0.9); border: 1px solid #ddd; width: 40px; height: 40px; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">&rsaquo;</button>
+    </div>
+</div>
+
+<!-- === INJECTION DES DONNÉES POUR LE JS === -->
+<script>
+const CURRENT_DOCUMENT = {
+    id: <?php echo json_encode($itemId); ?>,
+    name: <?php echo json_encode($name); ?>,
+    type: <?php echo json_encode($itemType); ?>
+};
+
+window.currentDocumentData = CURRENT_DOCUMENT;
+</script>
+
+<!-- === SCRIPT DE GESTION DES RECOMMANDATIONS SIMILAIRES === -->
+<script>
+/**
+ * Charger les documents similaires via l'API
+ */
+async function loadSimilarDocuments() {
+    const loader = document.getElementById('similar-documents-loader');
+    const listContainer = document.getElementById('similar-documents-list');
+    const emptyMessage = document.getElementById('similar-documents-empty');
+    
+    try {
+        const allDocuments = await fetchAllDocuments();
+        
+        const payload = {
+            title: CURRENT_DOCUMENT.name,
+            booksData: allDocuments.books || [],
+            thesesData: allDocuments.theses || [],
+            currentDocId: CURRENT_DOCUMENT.id
+        };
+        
+        const response = await fetch('ajax_similar_documents.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.message || 'Erreur inconnue');
+        }
+        
+        loader.style.display = 'none';
+        
+        if (data.similar_documents && data.similar_documents.length > 0) {
+            displaySimilarDocuments(data.similar_documents, data.source);
+            listContainer.style.display = 'flex';
+        } else {
+            emptyMessage.style.display = 'block';
+        }
+        
+    } catch (error) {
+        console.error('Erreur chargement documents similaires:', error);
+        loader.style.display = 'none';
+        displayFallbackSimilar();
+    }
+}
+
+/**
+ * Récupérer tous les documents
+ */
+async function fetchAllDocuments() {
+    if (window.booksData && window.thesesData) {
+        return {
+            books: window.booksData,
+            theses: window.thesesData
+        };
+    }
+    
+    try {
+        const response = await fetch('ajax_get_all_documents.php');
+        const data = await response.json();
+        return {
+            books: data.books || [],
+            theses: data.theses || []
+        };
+    } catch (e) {
+        console.error('Erreur récupération documents:', e);
+        return { books: [], theses: [] };
+    }
+}
+
+/**
+ * Afficher les documents similaires (STYLE HORIZONTAL COMME EXPLORE.PHP)
+ */
+function displaySimilarDocuments(documents, source) {
+    const listContainer = document.getElementById('similar-documents-list');
+    listContainer.innerHTML = '';
+    
+    // *** STYLES IDENTIQUES À explore.php ***
+    listContainer.style.display = 'flex';
+    listContainer.style.flexWrap = 'nowrap';
+    listContainer.style.overflowX = 'auto';
+    listContainer.style.overflowY = 'hidden';
+    listContainer.style.gap = '25px';
+    listContainer.style.padding = '15px';
+    listContainer.style.boxSizing = 'border-box';
+    listContainer.style.alignItems = 'flex-start';
+    listContainer.style.scrollPaddingLeft = '5px';
+    listContainer.style.scrollPaddingRight = '5px';
+    
+    // Limiter à 10 documents max
+    const displayDocs = documents.slice(0, 10);
+    
+    displayDocs.forEach(doc => {
+        const isBook = !!doc.fields.cathegorie;
+        const name = doc.fields.name ? doc.fields.name.stringValue : 
+                    (doc.fields.Nom ? doc.fields.Nom.stringValue : 
+                    (doc.fields.theme ? doc.fields.theme.stringValue : 'Titre non disponible'));
+        
+        const category = doc.fields.cathegorie ? doc.fields.cathegorie.stringValue : 
+                        (doc.fields.département ? doc.fields.département.stringValue : 'Non disponible');
+        
+        const docId = doc.name.split('/').pop();
+        const type = isBook ? 'books' : 'theses';
+        const typeLabel = isBook ? 'Livre' : 'Mémoire';
+        const detailUrl = `view.php?id=${docId}&type=${type}`;
+        
+        const imageUrl = doc.fields.image ? doc.fields.image.stringValue : 'images/default-image.png';
+        const exemplaire = doc.exemplaire || 0;
+        
+        const similarity = doc.similarity_score || 0;
+        const disponibilite = exemplaire > 0 ?
+            `<span class="badge badge-success" title="${exemplaire} disponible(s)">${exemplaire}</span>` :
+            `<span class="badge badge-danger" title="Hors stock">0</span>`;
+        
+        const truncatedName = name.length > 35 ? name.substring(0, 35) + '...' : name;
+        const truncatedCategory = category.length > 25 ? category.substring(0, 25) + '...' : category;
+        
+        // Badge de similarité
+        const simText = similarity > 0 ? `${Math.round(similarity)}% similaire` : 'Document connexe';
+        
+        // *** STRUCTURE IDENTIQUE À explore.php ***
+        const itemHTML = `
+            <div class="recommendation-item" style="flex: 0 0 auto; width: 220px; box-sizing: border-box; min-height: 340px;">
+                <a href="${detailUrl}" class="recommendation-link" style="display: block; height: 100%; text-decoration: none; color: inherit;">
+                    <div class="recommendation-image" style="width: 100%; height: 220px; overflow: hidden; background: #f5f5f5;">
+                        <img src="${imageUrl}" 
+                             alt="${name}"
+                             onerror="this.src='images/default-image.png'"
+                             style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                    </div>
+                    <div class="recommendation-content" style="padding: 12px; display: flex; flex-direction: column; box-sizing: border-box; min-height: 120px;">
+                        <span class="recommendation-type" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-bottom: 8px;">${typeLabel}</span>
+                        <h4 class="recommendation-title" style="font-size: 1em; font-weight: 600; color: #333; margin: 0 0 6px 0; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.4em;" title="${name}">${truncatedName}</h4>
+                        <p class="recommendation-category" style="font-size: 0.85em; color: #666; margin: 0 0 4px 0; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${category}">${truncatedCategory}</p>
+                        <div style="margin-bottom: 6px;">${disponibilite}</div>
+                        <p class="recommendation-reason" style="font-size: 0.8em; color: #17a2b8; margin: 0; padding-top: 6px; border-top: 1px dashed #e9ecef; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; flex-grow: 1;" title="${simText}">${simText}</p>
+                    </div>
+                </a>
+            </div>
+        `;
+        
+        listContainer.innerHTML += itemHTML;
+    });
+    
+    // Badge source fallback
+    if (source === 'fallback') {
+        const badge = document.createElement('div');
+        badge.className = 'fallback-badge';
+        badge.style.cssText = 'position: absolute; top: 10px; right: 60px; background: #ffc107; color: #000; padding: 5px 10px; border-radius: 5px; font-size: 0.75em; font-weight: 600; z-index: 5;';
+        badge.innerHTML = '<i class="fa fa-random"></i> Sélection aléatoire';
+        listContainer.parentElement.parentElement.appendChild(badge);
+    }
+}
+
+/**
+ * Fallback : Documents aléatoires
+ */
+async function displayFallbackSimilar() {
+    const allDocs = await fetchAllDocuments();
+    const combined = [...(allDocs.books || []), ...(allDocs.theses || [])];
+    
+    const filtered = combined.filter(doc => {
+        const docId = doc.name.split('/').pop();
+        return docId !== CURRENT_DOCUMENT.id;
+    });
+    
+    for (let i = filtered.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+    }
+    
+    const randomDocs = filtered.slice(0, 10);
+    
+    const listContainer = document.getElementById('similar-documents-list');
+    const emptyMessage = document.getElementById('similar-documents-empty');
+    
+    if (randomDocs.length > 0) {
+        displaySimilarDocuments(randomDocs, 'fallback');
+        listContainer.style.display = 'flex';
+    } else {
+        emptyMessage.style.display = 'block';
+    }
+}
+
+/**
+ * Initialiser le scroll horizontal (IDENTIQUE À explore.php)
+ */
+function initSimilarScroll() {
+    const listContainer = document.getElementById('similar-documents-list');
+    const scrollLeftBtn = document.querySelector('.scroll-left-similar');
+    const scrollRightBtn = document.querySelector('.scroll-right-similar');
+    
+    if (!listContainer) return;
+    
+    const scrollAmount = 300;
+    
+    if (scrollLeftBtn) {
+        scrollLeftBtn.addEventListener('click', () => {
+            listContainer.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+        });
+    }
+    
+    if (scrollRightBtn) {
+        scrollRightBtn.addEventListener('click', () => {
+            listContainer.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        });
+    }
+    
+    function updateScrollButtons() {
+        if (!listContainer) return;
+        
+        if (scrollLeftBtn) {
+            scrollLeftBtn.style.opacity = listContainer.scrollLeft > 0 ? '1' : '0.5';
+        }
+        
+        if (scrollRightBtn) {
+            const maxScrollLeft = listContainer.scrollWidth - listContainer.clientWidth;
+            scrollRightBtn.style.opacity = listContainer.scrollLeft < maxScrollLeft ? '1' : '0.5';
+        }
+    }
+    
+    listContainer.addEventListener('scroll', updateScrollButtons);
+    
+    // Support clavier
+    listContainer.tabIndex = 0;
+    listContainer.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            listContainer.scrollBy({ left: 150, behavior: 'smooth' });
+        }
+        if (e.key === 'ArrowLeft') {
+            listContainer.scrollBy({ left: -150, behavior: 'smooth' });
+        }
+    });
+    
+    updateScrollButtons();
+}
+
+// Initialisation au chargement
+document.addEventListener('DOMContentLoaded', function() {
+    loadSimilarDocuments();
+    setTimeout(initSimilarScroll, 500);
+});
+</script>
+
+<!-- === STYLES CSS POUR HARMONISATION === -->
+<style>
+/* Réutilisation des styles de explore.php */
+.recommendations-section {
+    position: relative;
+    min-height: 300px;
+}
+
+.recommendations-scroll-container {
+    overflow: hidden;
+    position: relative;
+}
+
+.recommendations-list {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.recommendations-list::-webkit-scrollbar {
+    height: 8px;
+}
+
+.recommendations-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.recommendations-list::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.recommendations-list::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.recommendation-item {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.recommendation-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+}
+
+.scroll-left-similar:hover,
+.scroll-right-similar:hover {
+    background: #fff !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .scroll-left-similar,
+    .scroll-right-similar {
+        display: none;
+    }
+}
+</style>
 
 <?php
 echo $OUTPUT->footer();

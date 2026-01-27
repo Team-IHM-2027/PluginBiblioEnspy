@@ -5,7 +5,6 @@
  * 
  * @package    local_biblio_enspy
  * @copyright  2026
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 header('Content-Type: application/json');
@@ -128,9 +127,9 @@ try {
     // 2. Rechercher le slot contenant cette réservation
     $slotFound = null;
     $collectionName = null;
-    $maxReservations = 3;
+    $maxReservations = 5;
     
-    for ($i = 1; $i <= $maxReservations; $i++) {
+    for ($i = 0; $i < $maxReservations; $i++) {
         $etatField = "etat{$i}";
         $tabEtatField = "tabEtat{$i}";
         

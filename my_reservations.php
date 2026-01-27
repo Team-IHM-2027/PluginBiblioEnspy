@@ -51,11 +51,11 @@ if (isset($userData['documents'])) {
 
 $activeReservations = [];
 $currentLoans = [];
-$maxReservations = 3; // A RENDRE DYNAMIQUE
+$maxReservations = 5; // A RENDRE DYNAMIQUE
 
 if ($userFields) {
     //Extraction et catégorisation des états actifs (reserv ou emprunt)
-    for ($i = 1; $i <= $maxReservations; $i++) {
+    for ($i = 0; $i < $maxReservations; $i++) {
         $statusField = "etat{$i}";
         $tabField = "tabEtat{$i}";
         

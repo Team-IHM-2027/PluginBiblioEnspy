@@ -114,11 +114,11 @@ require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notifica
             console.error('Error listening to Firestore:', error);
         });
 
-        // Synchronisation initiale et périodique (toutes les 20 secondes)
+        // Synchronisation initiale et périodique (toutes les 600 secondes)
         self.performInitialSync();
         self.syncInterval = setInterval(function() {
             self.performInitialSync();
-        }, 20000);
+        }, 600000);
     };
 
     /**
@@ -137,7 +137,7 @@ require(['jquery', 'core/ajax', 'core/notification'], function($, ajax, notifica
             .where('userId', '==', self.userEmail)
             .where('timestamp', '>', firebase.firestore.Timestamp.fromDate(oneDayAgo))
             .orderBy('timestamp', 'desc')
-            .limit(50)
+            .limit(20)
             .get()
             .then(function(querySnapshot) {
                 var notifications = [];

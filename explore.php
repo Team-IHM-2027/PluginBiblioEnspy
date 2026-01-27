@@ -4,6 +4,17 @@ use Google\Auth\Credentials\ServiceAccountCredentials;
 require_once('../../config.php');
 require_once(__DIR__ . '/lib.php');
 
+require_login();
+// Configuration de la page Moodle
+$context = context_system::instance();
+$PAGE->set_context($context);
+$PAGE->set_url(new moodle_url('/local/biblio_enspy/explore.php'));
+$PAGE->set_title('Bibliothèque ENSPY');
+$PAGE->set_heading('Bibliothèque ENSPY');
+$PAGE->set_pagelayout('standard');
+$PAGE->requires->css('/local/biblio_enspy/css/styles.css');
+$PAGE->requires->js('/local/biblio_enspy/js/switchBooks.js');
+
 // Charger projectId + accessToken
 list($projectId, $accessToken) = biblio_load_google_credentials();
 
@@ -13,8 +24,6 @@ if (!$projectId || !$accessToken) {
     echo $OUTPUT->footer();
     exit;
 }
-
-require_login();
 
 // Vérification statut utilisateur Firestore
 $status = biblio_check_user_status($USER, $projectId, $accessToken);
@@ -74,16 +83,6 @@ $config = [
     'messagingSenderId' => (string)$web['messagingSenderId'],
     'appId'             => $web['appId']
 ];
-
-// Configuration de la page Moodle
-$context = context_system::instance();
-$PAGE->set_context($context);
-$PAGE->set_url(new moodle_url('/local/biblio_enspy/explore.php'));
-$PAGE->set_title('Bibliothèque ENSPY');
-$PAGE->set_heading('Bibliothèque ENSPY');
-$PAGE->set_pagelayout('standard');
-$PAGE->requires->css('/local/biblio_enspy/css/styles.css');
-$PAGE->requires->js('/local/biblio_enspy/js/switchBooks.js');
 
 // NOUVEAU CODE POUR LES NOTIFICATIONS EN TEMPS RÉEL
 
@@ -193,7 +192,7 @@ function extractReservationIdsFromUserData($userFields) {
     $reservationIds = [];
     $maxReservations = 5; // 3 états maximum
     
-    for ($i = 1; $i <= $maxReservations; $i++) { 
+    for ($i = 0; $i < $maxReservations; $i++) { 
         $etatField = "etat{$i}";
         $tabEtatField = "tabEtat{$i}";
         

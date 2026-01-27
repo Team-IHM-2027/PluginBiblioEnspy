@@ -131,9 +131,9 @@ try {
     $userFields = $userDataResult['response']['fields'];
 
     $etatIndex = 0;
-    $maxReservations = 3; 
+    $maxReservations = 5; 
 
-for ($i = 1; $i <= $maxReservations; $i++) {
+for ($i = 0; $i < $maxReservations; $i++) {
     $val = $userFields["etat{$i}"]['stringValue'] ?? 'ras';
     
     if ($val === 'reserv' || $val === 'emprunt') {
